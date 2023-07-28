@@ -17,56 +17,31 @@ mod physics_server_3d;
 
 #[derive(GodotClass)]
 #[class(base=Object,init)]
-pub struct RapierPhysicsServerFactory {}
+pub struct ServerInitializer {}
 
 #[godot_api]
-impl RapierPhysicsServerFactory {
+impl ServerInitializer {
     fn create_server() -> Gd<RapierPhysicsServer3D> {
         Gd::new_default()
     }
 }
 
-impl ServerLayer {
-    fn new() -> Self {
-        Self {
-            server_factory: Gd::<RapierPhysicsServerFactory>::new_default(),
-        }
-    }
-}
-
-struct ServerLayer {
-    server_factory: Gd<RapierPhysicsServerFactory>,
-}
+struct ServerLayer;
 impl ExtensionLayer for ServerLayer {
     fn initialize(&mut self) {
+        crate::auto_register_classes();
         let mut manager = PhysicsServer3DManager::singleton();
-        manager.register_server(
-            "Rapier3D".into(),
-            self.server_factory.callable("create_server"),
-        );
+        let initializer = Gd::<ServerInitializer>::new_default();
+        manager.register_server("Rapier3D".into(), initializer.callable("create_server"));
     }
 
     fn deinitialize(&mut self) {}
 }
 
-struct DefaultLayer;
-
-impl ExtensionLayer for DefaultLayer {
-    fn initialize(&mut self) {
-        crate::auto_register_classes();
-    }
-
-    fn deinitialize(&mut self) {
-        // Nothing -- note that any cleanup task should be performed outside of this method,
-        // as the user is free to use a different impl, so cleanup code may not be run.
-    }
-}
-
 #[gdextension]
 unsafe impl ExtensionLibrary for RapierPhysics {
     fn load_library(handle: &mut InitHandle) -> bool {
-        handle.register_layer(InitLevel::Scene, DefaultLayer);
-        handle.register_layer(InitLevel::Servers, ServerLayer::new());
+        handle.register_layer(InitLevel::Servers, ServerLayer);
         true
     }
 }

@@ -1,13 +1,12 @@
+#![allow(unused, non_snake_case)]
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
-use godot::engine::{PhysicsServer3DExtension, PhysicsServer3DExtensionVirtual};
+use godot::engine::PhysicsServer3DExtensionVirtual;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
-#[class(base=PhysicsServer3DExtension)]
-struct RapierPhysicsServer3D {
-    #[base]
-    base: Base<PhysicsServer3DExtension>,
-}
+#[class(base=PhysicsServer3DExtension,init)]
+pub struct RapierPhysicsServer3D {}
+
 #[godot_api]
 impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn world_boundary_shape_create(&mut self) -> Rid {

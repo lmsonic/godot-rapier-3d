@@ -1,7 +1,7 @@
 #![allow(unused, non_snake_case)]
 use std::collections::HashMap;
 
-use crate::shapes::{BoxShape, SphereShape};
+use crate::shapes::{BoxShape, CapsuleShape, CylinderShape, SphereShape};
 
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
 use godot::engine::PhysicsServer3DExtensionVirtual;
@@ -11,7 +11,7 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
-    shape_owner: HashMap<Rid, Box<dyn crate::shapes::Shape>>,
+    shapes: HashMap<Rid, Box<dyn crate::shapes::Shape>>,
     active: bool,
 }
 
@@ -30,20 +30,26 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = SphereShape::new(rid);
-        self.shape_owner.insert(rid, Box::new(shape));
+        self.shapes.insert(rid, Box::new(shape));
         rid
     }
     fn box_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = BoxShape::new(rid);
-        self.shape_owner.insert(rid, Box::new(shape));
+        self.shapes.insert(rid, Box::new(shape));
         rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = CapsuleShape::new(rid);
+        self.shapes.insert(rid, Box::new(shape));
+        rid
     }
     fn cylinder_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = CylinderShape::new(rid);
+        self.shapes.insert(rid, Box::new(shape));
+        rid
     }
     fn convex_polygon_shape_create(&mut self) -> Rid {
         unimplemented!()
@@ -58,7 +64,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
-        self.shape_owner.get_mut(&shape_rid).map_or_else(
+        self.shapes.get_mut(&shape_rid).map_or_else(
             || {
                 godot_error!("RID doesn't correspond to any shape");
             },
@@ -68,7 +74,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         );
     }
     fn shape_set_custom_solver_bias(&mut self, shape_rid: Rid, bias: f32) {
-        self.shape_owner.get_mut(&shape_rid).map_or_else(
+        self.shapes.get_mut(&shape_rid).map_or_else(
             || {
                 godot_error!("RID doesn't correspond to any shape");
             },
@@ -78,7 +84,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         );
     }
     fn shape_set_margin(&mut self, shape_rid: Rid, margin: f32) {
-        self.shape_owner.get_mut(&shape_rid).map_or_else(
+        self.shapes.get_mut(&shape_rid).map_or_else(
             || {
                 godot_error!("RID doesn't correspond to any shape");
             },
@@ -88,16 +94,40 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         );
     }
     fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
-        self.shape_owner[&shape_rid].get_margin()
+        self.shapes.get(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+                0.0
+            },
+            |shape| shape.get_margin(),
+        )
     }
     fn shape_get_type(&self, shape_rid: Rid) -> godot::engine::physics_server_3d::ShapeType {
-        self.shape_owner[&shape_rid].get_type()
+        self.shapes.get(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+                godot::engine::physics_server_3d::ShapeType::SHAPE_CUSTOM
+            },
+            |shape| shape.get_type(),
+        )
     }
     fn shape_get_data(&self, shape_rid: Rid) -> Variant {
-        self.shape_owner[&shape_rid].get_data()
+        self.shapes.get(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+                Variant::nil()
+            },
+            |shape| shape.get_data(),
+        )
     }
     fn shape_get_custom_solver_bias(&self, shape_rid: Rid) -> f32 {
-        self.shape_owner[&shape_rid].get_custom_solver_bias()
+        self.shapes.get(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+                0.0
+            },
+            |shape| shape.get_custom_solver_bias(),
+        )
     }
     fn space_create(&mut self) -> Rid {
         unimplemented!()

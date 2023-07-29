@@ -57,26 +57,31 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
-        //self.shape_owner[&shape_rid].set_data(data);
-        unimplemented!()
+        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
+            shape.set_data(data);
+        }
     }
-    fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {
-        unimplemented!()
+    fn shape_set_custom_solver_bias(&mut self, shape_rid: Rid, bias: f32) {
+        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
+            shape.set_custom_solver_bias(bias);
+        }
     }
-    fn shape_set_margin(&mut self, shape: Rid, margin: f32) {
-        unimplemented!()
+    fn shape_set_margin(&mut self, shape_rid: Rid, margin: f32) {
+        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
+            shape.set_margin(margin);
+        }
     }
-    fn shape_get_margin(&self, shape: Rid) -> f32 {
-        unimplemented!()
+    fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
+        self.shape_owner[&shape_rid].get_margin()
     }
-    fn shape_get_type(&self, shape: Rid) -> godot::engine::physics_server_3d::ShapeType {
-        unimplemented!()
+    fn shape_get_type(&self, shape_rid: Rid) -> godot::engine::physics_server_3d::ShapeType {
+        self.shape_owner[&shape_rid].get_type()
     }
-    fn shape_get_data(&self, shape: Rid) -> Variant {
-        unimplemented!()
+    fn shape_get_data(&self, shape_rid: Rid) -> Variant {
+        self.shape_owner[&shape_rid].get_data()
     }
-    fn shape_get_custom_solver_bias(&self, shape: Rid) -> f32 {
-        unimplemented!()
+    fn shape_get_custom_solver_bias(&self, shape_rid: Rid) -> f32 {
+        self.shape_owner[&shape_rid].get_custom_solver_bias()
     }
     fn space_create(&mut self) -> Rid {
         unimplemented!()

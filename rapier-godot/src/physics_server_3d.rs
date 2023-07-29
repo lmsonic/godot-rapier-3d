@@ -1,12 +1,23 @@
 #![allow(unused, non_snake_case)]
+use std::collections::HashMap;
+
+use crate::shapes::{BoxShape, SphereShape};
+
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
 use godot::engine::PhysicsServer3DExtensionVirtual;
+use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
 use godot::prelude::*;
 
 #[derive(GodotClass)]
 #[class(base=PhysicsServer3DExtension,init)]
-pub struct RapierPhysicsServer3D {}
+pub struct RapierPhysicsServer3D {
+    shape_owner: HashMap<Rid, Box<dyn crate::shapes::Shape>>,
+}
 
+#[inline]
+fn make_rid() -> Rid {
+    rid_from_int64(rid_allocate_id())
+}
 #[godot_api]
 impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn world_boundary_shape_create(&mut self) -> Rid {
@@ -16,10 +27,16 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn sphere_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = SphereShape::new(rid);
+        self.shape_owner.insert(rid, Box::new(shape));
+        rid
     }
     fn box_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = BoxShape::new(rid);
+        self.shape_owner.insert(rid, Box::new(shape));
+        rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
         unimplemented!()
@@ -39,7 +56,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn custom_shape_create(&mut self) -> Rid {
         unimplemented!()
     }
-    fn shape_set_data(&mut self, shape: Rid, data: Variant) {
+    fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
+        //self.shape_owner[&shape_rid].set_data(data);
         unimplemented!()
     }
     fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {
@@ -514,7 +532,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn soft_body_set_mesh(&mut self, body: Rid, mesh: Rid) {
         unimplemented!()
     }
-    fn soft_body_get_bounds(&self, body: Rid) -> Aabb {
+    fn soft_body_get_bounds(&self, body: Rid) -> godot::builtin::Aabb {
         unimplemented!()
     }
     fn soft_body_move_point(&mut self, body: Rid, point_index: i32, global_position: Vector3) {

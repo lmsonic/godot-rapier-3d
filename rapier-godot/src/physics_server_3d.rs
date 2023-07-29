@@ -57,19 +57,34 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
-        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
-            shape.set_data(data);
-        }
+        self.shape_owner.get_mut(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+            },
+            |shape| {
+                shape.set_data(data);
+            },
+        );
     }
     fn shape_set_custom_solver_bias(&mut self, shape_rid: Rid, bias: f32) {
-        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
-            shape.set_custom_solver_bias(bias);
-        }
+        self.shape_owner.get_mut(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+            },
+            |shape| {
+                shape.set_custom_solver_bias(bias);
+            },
+        );
     }
     fn shape_set_margin(&mut self, shape_rid: Rid, margin: f32) {
-        if let Some(shape) = self.shape_owner.get_mut(&shape_rid) {
-            shape.set_margin(margin);
-        }
+        self.shape_owner.get_mut(&shape_rid).map_or_else(
+            || {
+                godot_error!("RID doesn't correspond to any shape");
+            },
+            |shape| {
+                shape.set_margin(margin);
+            },
+        );
     }
     fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
         self.shape_owner[&shape_rid].get_margin()

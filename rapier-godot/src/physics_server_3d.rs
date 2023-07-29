@@ -12,6 +12,7 @@ use godot::prelude::*;
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
     shape_owner: HashMap<Rid, Box<dyn crate::shapes::Shape>>,
+    active: bool,
 }
 
 #[inline]
@@ -778,11 +779,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn set_active(&mut self, active: bool) {
-        unimplemented!()
+        self.active = active;
     }
-    fn init_ext(&mut self) {
-        unimplemented!()
-    }
+    fn init_ext(&mut self) {}
     fn step(&mut self, step: f32) {
         unimplemented!()
     }

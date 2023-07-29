@@ -22,8 +22,9 @@ pub struct ServerInitializer {}
 
 #[godot_api]
 impl ServerInitializer {
+    #[func]
     fn create_server() -> Gd<RapierPhysicsServer3D> {
-        Gd::new_default()
+        Gd::<RapierPhysicsServer3D>::new_default()
     }
 }
 

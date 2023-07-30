@@ -11,10 +11,13 @@ use physics_server_3d::RapierPhysicsServer3D;
 
 struct RapierPhysics;
 
+mod area;
+mod body;
 mod direct_body_state_3d;
 mod direct_space_state_3d;
 mod physics_server_3d;
 mod shape;
+mod space;
 
 #[derive(GodotClass)]
 #[class(base=Object,init)]

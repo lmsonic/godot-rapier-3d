@@ -1,10 +1,13 @@
+#![allow(clippy::module_name_repetitions)]
+use std::{cell::RefCell, rc::Rc};
+
 use godot::prelude::{math::ApproxEq, *};
 use rapier3d::prelude::*;
 
 type GodotShapeType = godot::engine::physics_server_3d::ShapeType;
 const DEFAULT_SOLVER_BIAS: f32 = 0.0;
 
-pub trait Shape {
+pub trait RapierShape {
     fn get_rid(&self) -> Rid;
     fn set_rid(&mut self, rid: Rid);
     fn get_data(&self) -> Variant;
@@ -27,12 +30,50 @@ pub trait Shape {
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
 }
 
-pub struct SphereShape {
+pub trait RapierObject {}
+
+pub struct RapierShapeInstance {
+    parent: Rc<RefCell<dyn RapierObject>>,
+    shape: Rc<RefCell<dyn Shape>>,
+    transform: Transform3D,
+    scale: Vector3,
+    disabled: bool,
+}
+
+impl RapierShapeInstance {
+    pub fn with_transform_scale_disabled(
+        parent: Rc<RefCell<dyn RapierObject>>,
+        shape: Rc<RefCell<dyn Shape>>,
+        transform: Transform3D,
+        scale: Vector3,
+        disabled: bool,
+    ) -> Self {
+        Self {
+            parent,
+            shape,
+            transform,
+            scale,
+            disabled,
+        }
+    }
+
+    pub fn new(parent: Rc<RefCell<dyn RapierObject>>, shape: Rc<RefCell<dyn Shape>>) -> Self {
+        Self {
+            parent,
+            shape,
+            transform: Transform3D::default(),
+            scale: Vector3::ONE,
+            disabled: false,
+        }
+    }
+}
+
+pub struct RapierSphereShape {
     shape: Ball,
     rid: Rid,
 }
 
-impl SphereShape {
+impl RapierSphereShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: Ball::new(0.5),
@@ -41,7 +82,7 @@ impl SphereShape {
     }
 }
 
-impl Shape for SphereShape {
+impl RapierShape for RapierSphereShape {
     fn get_rid(&self) -> Rid {
         self.rid
     }
@@ -68,12 +109,12 @@ impl Shape for SphereShape {
     }
 }
 
-pub struct BoxShape {
+pub struct RapierBoxShape {
     shape: Cuboid,
     rid: Rid,
 }
 
-impl BoxShape {
+impl RapierBoxShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: Cuboid::new(vector![0.5, 0.5, 0.5]),
@@ -82,7 +123,7 @@ impl BoxShape {
     }
 }
 
-impl Shape for BoxShape {
+impl RapierShape for RapierBoxShape {
     fn get_rid(&self) -> Rid {
         self.rid
     }
@@ -113,12 +154,12 @@ impl Shape for BoxShape {
     }
 }
 
-pub struct CapsuleShape {
+pub struct RapierCapsuleShape {
     shape: Capsule,
     rid: Rid,
 }
 
-impl CapsuleShape {
+impl RapierCapsuleShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: Capsule::new_y(0.5, 0.2),
@@ -127,7 +168,7 @@ impl CapsuleShape {
     }
 }
 
-impl Shape for CapsuleShape {
+impl RapierShape for RapierCapsuleShape {
     fn get_rid(&self) -> Rid {
         self.rid
     }
@@ -163,12 +204,12 @@ impl Shape for CapsuleShape {
     }
 }
 
-pub struct CylinderShape {
+pub struct RapierCylinderShape {
     shape: Cylinder,
     rid: Rid,
 }
 
-impl CylinderShape {
+impl RapierCylinderShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: Cylinder::new(0.5, 0.2),
@@ -177,7 +218,7 @@ impl CylinderShape {
     }
 }
 
-impl Shape for CylinderShape {
+impl RapierShape for RapierCylinderShape {
     fn get_rid(&self) -> Rid {
         self.rid
     }

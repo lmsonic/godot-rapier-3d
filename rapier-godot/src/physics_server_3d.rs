@@ -1,9 +1,17 @@
 #![allow(unused, non_snake_case)]
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
-use crate::shape::{BoxShape, CapsuleShape, CylinderShape, Shape, SphereShape};
+use crate::area::RapierArea;
+use crate::body::RapierBody;
+use crate::shape::{
+    RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
+};
+use crate::space::RapierSpace;
 
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
+use godot::engine::physics_server_3d::{BodyMode, SpaceParameter};
 use godot::engine::PhysicsServer3DExtensionVirtual;
 use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
 use godot::prelude::*;
@@ -11,7 +19,11 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
-    shapes: HashMap<Rid, Box<dyn Shape>>,
+    shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
+    bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
+    areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
+    spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
+    active_spaces: HashSet<Rid>,
     active: bool,
 }
 
@@ -29,26 +41,26 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = SphereShape::new(rid);
-        self.shapes.insert(rid, Box::new(shape));
+        let shape = RapierSphereShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn box_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = BoxShape::new(rid);
-        self.shapes.insert(rid, Box::new(shape));
+        let shape = RapierBoxShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = CapsuleShape::new(rid);
-        self.shapes.insert(rid, Box::new(shape));
+        let shape = RapierCapsuleShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn cylinder_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = CylinderShape::new(rid);
-        self.shapes.insert(rid, Box::new(shape));
+        let shape = RapierCylinderShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn convex_polygon_shape_create(&mut self) -> Rid {
@@ -69,7 +81,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
             },
             |shape| {
-                shape.set_data(data);
+                shape.borrow_mut().set_data(data);
             },
         );
     }
@@ -79,7 +91,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
             },
             |shape| {
-                shape.set_custom_solver_bias(bias);
+                shape.borrow_mut().set_custom_solver_bias(bias);
             },
         );
     }
@@ -89,7 +101,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
             },
             |shape| {
-                shape.set_margin(margin);
+                shape.borrow_mut().set_margin(margin);
             },
         );
     }
@@ -99,7 +111,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
                 0.0
             },
-            |shape| shape.get_margin(),
+            |shape| shape.borrow().get_margin(),
         )
     }
     fn shape_get_type(&self, shape_rid: Rid) -> godot::engine::physics_server_3d::ShapeType {
@@ -108,7 +120,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
                 godot::engine::physics_server_3d::ShapeType::SHAPE_CUSTOM
             },
-            |shape| shape.get_type(),
+            |shape| shape.borrow().get_type(),
         )
     }
     fn shape_get_data(&self, shape_rid: Rid) -> Variant {
@@ -117,7 +129,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
                 Variant::nil()
             },
-            |shape| shape.get_data(),
+            |shape| shape.borrow().get_data(),
         )
     }
     fn shape_get_custom_solver_bias(&self, shape_rid: Rid) -> f32 {
@@ -126,32 +138,46 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
                 godot_error!("RID doesn't correspond to any shape");
                 0.0
             },
-            |shape| shape.get_custom_solver_bias(),
+            |shape| shape.borrow().get_custom_solver_bias(),
         )
     }
     fn space_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let mut space = Rc::new(RefCell::new(RapierSpace::new(rid)));
+        self.spaces.insert(rid, space.clone());
+
+        let default_area_id = self.area_create();
+        if let Some(default_area) = self.areas.get_mut(&default_area_id) {
+            space.borrow_mut().set_default_area(default_area.clone());
+            default_area.borrow_mut().set_space(space);
+        }
+        rid
     }
-    fn space_set_active(&mut self, space: Rid, active: bool) {
-        unimplemented!()
+    fn space_set_active(&mut self, space_id: Rid, active: bool) {
+        if let Some(space) = self.spaces.get_mut(&space_id) {
+            if active {
+                self.active_spaces.insert(space_id);
+            } else {
+                self.active_spaces.remove(&space_id);
+            }
+        }
     }
-    fn space_is_active(&self, space: Rid) -> bool {
-        unimplemented!()
+    fn space_is_active(&self, space_id: Rid) -> bool {
+        if let Some(space) = self.spaces.get(&space_id) {
+            return self.active_spaces.contains(&space_id);
+        }
+        false
     }
-    fn space_set_param(
-        &mut self,
-        space: Rid,
-        param: godot::engine::physics_server_3d::SpaceParameter,
-        value: f32,
-    ) {
-        unimplemented!()
+    fn space_set_param(&mut self, space_id: Rid, param: SpaceParameter, value: f32) {
+        if let Some(space) = self.spaces.get_mut(&space_id) {
+            space.borrow_mut().set_param(param, value);
+        }
     }
-    fn space_get_param(
-        &self,
-        space: Rid,
-        param: godot::engine::physics_server_3d::SpaceParameter,
-    ) -> f32 {
-        unimplemented!()
+    fn space_get_param(&self, space_id: Rid, param: SpaceParameter) -> f32 {
+        if let Some(space) = self.spaces.get(&space_id) {
+            return space.borrow_mut().get_param(param);
+        }
+        0.0
     }
     fn space_get_direct_state(
         &mut self,
@@ -169,16 +195,37 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn area_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let area = RapierArea::new(rid);
+        self.areas.insert(rid, Rc::new(RefCell::new(area)));
+        rid
     }
-    fn area_set_space(&mut self, area: Rid, space: Rid) {
-        unimplemented!()
+    fn area_set_space(&mut self, area_id: Rid, space_id: Rid) {
+        if let Some(area) = self.areas.get_mut(&area_id) {
+            if let Some(space) = self.spaces.get_mut(&space_id) {
+                area.borrow_mut().set_space(space.clone());
+            };
+        };
     }
-    fn area_get_space(&self, area: Rid) -> Rid {
-        unimplemented!()
+    fn area_get_space(&self, area_id: Rid) -> Rid {
+        if let Some(area) = self.areas.get(&area_id) {
+            return area.borrow().get_space().borrow().get_rid();
+        };
+        Rid::Invalid
     }
-    fn area_add_shape(&mut self, area: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
-        unimplemented!()
+    fn area_add_shape(
+        &mut self,
+        area_id: Rid,
+        shape_id: Rid,
+        transform: Transform3D,
+        disabled: bool,
+    ) {
+        if let Some(area) = self.areas.get_mut(&area_id) {
+            if let Some(shape) = self.shapes.get_mut(&shape_id) {
+                area.borrow_mut()
+                    .add_shape(shape.clone(), transform, disabled);
+            };
+        };
     }
     fn area_set_shape(&mut self, area: Rid, shape_idx: i32, shape: Rid) {
         unimplemented!()
@@ -256,18 +303,21 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn body_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let body = RapierBody::new(rid);
+        self.bodies.insert(rid, Rc::new(RefCell::new(body)));
+        rid
     }
-    fn body_set_space(&mut self, body: Rid, space: Rid) {
+    fn body_set_space(&mut self, body_id: Rid, space_id: Rid) {
         unimplemented!()
     }
     fn body_get_space(&self, body: Rid) -> Rid {
         unimplemented!()
     }
-    fn body_set_mode(&mut self, body: Rid, mode: godot::engine::physics_server_3d::BodyMode) {
+    fn body_set_mode(&mut self, body: Rid, mode: BodyMode) {
         unimplemented!()
     }
-    fn body_get_mode(&self, body: Rid) -> godot::engine::physics_server_3d::BodyMode {
+    fn body_get_mode(&self, body: Rid) -> BodyMode {
         unimplemented!()
     }
     fn body_add_shape(&mut self, body: Rid, shape: Rid, transform: Transform3D, disabled: bool) {

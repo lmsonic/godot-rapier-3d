@@ -1,7 +1,7 @@
 #![allow(unused, non_snake_case)]
 use std::collections::HashMap;
 
-use crate::shapes::{BoxShape, CapsuleShape, CylinderShape, SphereShape};
+use crate::shape::{BoxShape, CapsuleShape, CylinderShape, Shape, SphereShape};
 
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
 use godot::engine::PhysicsServer3DExtensionVirtual;
@@ -11,7 +11,7 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
-    shapes: HashMap<Rid, Box<dyn crate::shapes::Shape>>,
+    shapes: HashMap<Rid, Box<dyn Shape>>,
     active: bool,
 }
 

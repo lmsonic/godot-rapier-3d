@@ -14,7 +14,7 @@ struct RapierPhysics;
 mod direct_body_state_3d;
 mod direct_space_state_3d;
 mod physics_server_3d;
-mod shapes;
+mod shape;
 
 #[derive(GodotClass)]
 #[class(base=Object,init)]

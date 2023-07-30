@@ -148,8 +148,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_set_space(&mut self, area_id: Rid, space_id: Rid) {
         if let Some(area) = self.areas.get_mut(&area_id) {
             if let Some(space) = self.spaces.get(&space_id) {
+                let handle = space.borrow_mut().add_area(area);
                 area.borrow_mut().space_id = Some(space_id);
-                space.borrow_mut().add_area(area);
+                area.borrow_mut().handle = Some(handle);
             }
         }
     }
@@ -261,7 +262,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         if let Some(body) = self.bodies.get_mut(&body_id) {
             if let Some(space) = self.spaces.get(&space_id) {
                 body.borrow_mut().space_id = Some(space_id);
-                space.borrow_mut().add_body(body);
+                //space.borrow_mut().add_body(body);
             }
         }
     }

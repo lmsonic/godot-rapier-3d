@@ -1,12 +1,17 @@
 use std::{cell::RefCell, rc::Rc};
 
 use godot::prelude::*;
+use rapier3d::prelude::*;
 
-use crate::shape::{RapierShape, RapierShapeInstance};
+use crate::{
+    math::transform_to_isometry,
+    shape::{RapierShape, RapierShapeInstance},
+};
 
 #[derive(Default)]
 pub struct RapierArea {
     pub space_id: Option<Rid>,
+    pub handle: Option<ColliderHandle>,
     pub shapes: Vec<RapierShapeInstance>,
 }
 
@@ -21,14 +26,8 @@ impl RapierArea {
         transform: Transform3D,
         disabled: bool,
     ) {
-        let isometry = decompose(transform);
+        let isometry = transform_to_isometry(&transform);
         let shape_instance = RapierShapeInstance::new(shape, isometry, disabled);
         self.shapes.push(shape_instance);
     }
-}
-
-fn decompose(
-    transform: Transform3D,
-) -> rapier3d::na::Isometry<f32, rapier3d::na::Unit<rapier3d::na::Quaternion<f32>>, 3> {
-    todo!()
 }

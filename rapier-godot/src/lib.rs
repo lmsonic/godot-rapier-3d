@@ -15,6 +15,7 @@ mod area;
 mod body;
 mod direct_body_state_3d;
 mod direct_space_state_3d;
+mod math;
 mod physics_server_3d;
 mod shape;
 mod space;

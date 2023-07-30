@@ -1,9 +1,9 @@
-use std::{borrow, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use godot::prelude::*;
 use rapier3d::prelude::*;
 
-use crate::{area::RapierArea, body::RapierBody};
+use crate::{area::RapierArea, math::isometry_to_transform};
 
 #[derive(Default)]
 pub struct RapierSpace {
@@ -45,7 +45,12 @@ impl RapierSpace {
         );
     }
 
-    pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
+    pub fn get_area_transform(&self, handle: ColliderHandle) -> Transform3D {
+        let collider = self.collider_set.get(handle).unwrap();
+        isometry_to_transform(collider.position())
+    }
+
+    pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) -> ColliderHandle {
         let collider = if area.borrow().shapes.len() == 1 {
             let shape_instance = &area.borrow().shapes[0];
             let shape = shape_instance.shape.borrow().get_shape();
@@ -68,36 +73,11 @@ impl RapierSpace {
                     )
                 })
                 .collect();
-            ColliderBuilder::compound(compound_shapes).build()
-        };
-
-        self.collider_set.insert(collider);
-    }
-
-    pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
-        let collider = if body.borrow().shapes.len() == 1 {
-            let shape_instance = &body.borrow().shapes[0];
-            let shape = shape_instance.shape.borrow().get_shape();
-
-            ColliderBuilder::new(shape)
-                .position(shape_instance.isometry)
+            ColliderBuilder::compound(compound_shapes)
                 .sensor(true)
-                .enabled(!shape_instance.disabled)
                 .build()
-        } else {
-            let compound_shapes: Vec<(Isometry<f32>, SharedShape)> = body
-                .borrow()
-                .shapes
-                .iter()
-                .filter(|shape_instance| !shape_instance.disabled)
-                .map(|shape_instance| {
-                    (
-                        shape_instance.isometry,
-                        shape_instance.shape.borrow().get_shape(),
-                    )
-                })
-                .collect();
-            ColliderBuilder::compound(compound_shapes).build()
         };
+
+        self.collider_set.insert(collider)
     }
 }

@@ -1,15 +1,15 @@
 use godot::prelude::*;
 
-use crate::shape::RapierObject;
+use crate::shape::RapierCollisionObject;
 
-impl RapierObject for RapierBody {}
+impl RapierCollisionObject for RapierBody {}
 #[allow(clippy::module_name_repetitions)]
 pub struct RapierBody {
     rid: Rid,
 }
 
 impl RapierBody {
-    pub fn new(rid: Rid) -> Self {
+    pub const fn new(rid: Rid) -> Self {
         Self { rid }
     }
 }

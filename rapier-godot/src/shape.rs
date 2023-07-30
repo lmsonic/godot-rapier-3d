@@ -30,11 +30,11 @@ pub trait RapierShape {
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
 }
 
-pub trait RapierObject {}
+pub trait RapierCollisionObject {}
 
 pub struct RapierShapeInstance {
-    parent: Rc<RefCell<dyn RapierObject>>,
-    shape: Rc<RefCell<dyn Shape>>,
+    parent: Rc<RefCell<dyn RapierCollisionObject>>,
+    shape: Rc<RefCell<dyn RapierShape>>,
     transform: Transform3D,
     scale: Vector3,
     disabled: bool,
@@ -42,8 +42,8 @@ pub struct RapierShapeInstance {
 
 impl RapierShapeInstance {
     pub fn with_transform_scale_disabled(
-        parent: Rc<RefCell<dyn RapierObject>>,
-        shape: Rc<RefCell<dyn Shape>>,
+        parent: Rc<RefCell<dyn RapierCollisionObject>>,
+        shape: Rc<RefCell<dyn RapierShape>>,
         transform: Transform3D,
         scale: Vector3,
         disabled: bool,
@@ -57,7 +57,10 @@ impl RapierShapeInstance {
         }
     }
 
-    pub fn new(parent: Rc<RefCell<dyn RapierObject>>, shape: Rc<RefCell<dyn Shape>>) -> Self {
+    pub fn new(
+        parent: Rc<RefCell<dyn RapierCollisionObject>>,
+        shape: Rc<RefCell<dyn RapierShape>>,
+    ) -> Self {
         Self {
             parent,
             shape,

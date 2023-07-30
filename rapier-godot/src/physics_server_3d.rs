@@ -209,7 +209,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_space(&self, area_id: Rid) -> Rid {
         if let Some(area) = self.areas.get(&area_id) {
-            return area.borrow().get_space().borrow().get_rid();
+            if let Some(space) = area.borrow().get_space() {
+                return space.borrow().get_rid();
+            };
         };
         Rid::Invalid
     }

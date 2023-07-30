@@ -1,71 +1,103 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{borrow, cell::RefCell, rc::Rc};
 
-use godot::{engine::physics_server_3d::SpaceParameter, prelude::*};
+use godot::prelude::*;
+use rapier3d::prelude::*;
 
-use crate::area::RapierArea;
+use crate::{area::RapierArea, body::RapierBody};
 
-#[allow(clippy::module_name_repetitions)]
+#[derive(Default)]
 pub struct RapierSpace {
-    rid: Rid,
-    default_area: Option<Rc<RefCell<RapierArea>>>,
-}
-const DEFAULT_CONTACT_RECYCLE_RADIUS: f32 = 0.01;
-const DEFAULT_CONTACT_MAX_SEPARATION: f32 = 0.05;
-const DEFAULT_CONTACT_MAX_ALLOWED_PENETRATION: f32 = 0.01;
-const DEFAULT_CONTACT_DEFAULT_BIAS: f32 = 0.8;
-const DEFAULT_SLEEP_THRESHOLD_LINEAR: f32 = 0.1;
-const DEFAULT_SLEEP_THRESHOLD_ANGULAR: f32 = 8.0 * std::f32::consts::PI / 180.0;
-const DEFAULT_SOLVER_ITERATIONS: f32 = 8.0;
-const DEFAULT_BODY_TIME_TO_SLEEP: f32 = 0.5;
-
-impl RapierSpace {
-    pub fn set_default_area(&mut self, area: Rc<RefCell<RapierArea>>) {
-        self.default_area = Some(area);
-    }
-    #[allow(clippy::match_same_arms, clippy::unused_self)]
-    pub fn set_param(&mut self, param: SpaceParameter, _value: f32) {
-        match param {
-            SpaceParameter::SPACE_PARAM_CONTACT_RECYCLE_RADIUS => {}
-            SpaceParameter::SPACE_PARAM_CONTACT_MAX_SEPARATION => {}
-            SpaceParameter::SPACE_PARAM_CONTACT_MAX_ALLOWED_PENETRATION => {}
-            SpaceParameter::SPACE_PARAM_CONTACT_DEFAULT_BIAS => {}
-            SpaceParameter::SPACE_PARAM_BODY_LINEAR_VELOCITY_SLEEP_THRESHOLD => {}
-            SpaceParameter::SPACE_PARAM_BODY_ANGULAR_VELOCITY_SLEEP_THRESHOLD => {}
-            SpaceParameter::SPACE_PARAM_BODY_TIME_TO_SLEEP => {}
-            SpaceParameter::SPACE_PARAM_SOLVER_ITERATIONS => {}
-            _ => {}
-        }
-    }
-    #[allow(clippy::unused_self)]
-    pub const fn get_param(&self, param: SpaceParameter) -> f32 {
-        match param {
-            SpaceParameter::SPACE_PARAM_CONTACT_RECYCLE_RADIUS => DEFAULT_CONTACT_RECYCLE_RADIUS,
-            SpaceParameter::SPACE_PARAM_CONTACT_MAX_SEPARATION => DEFAULT_CONTACT_MAX_SEPARATION,
-            SpaceParameter::SPACE_PARAM_CONTACT_MAX_ALLOWED_PENETRATION => {
-                DEFAULT_CONTACT_MAX_ALLOWED_PENETRATION
-            }
-            SpaceParameter::SPACE_PARAM_CONTACT_DEFAULT_BIAS => DEFAULT_CONTACT_DEFAULT_BIAS,
-            SpaceParameter::SPACE_PARAM_BODY_LINEAR_VELOCITY_SLEEP_THRESHOLD => {
-                DEFAULT_SLEEP_THRESHOLD_LINEAR
-            }
-            SpaceParameter::SPACE_PARAM_BODY_ANGULAR_VELOCITY_SLEEP_THRESHOLD => {
-                DEFAULT_SLEEP_THRESHOLD_ANGULAR
-            }
-            SpaceParameter::SPACE_PARAM_BODY_TIME_TO_SLEEP => DEFAULT_BODY_TIME_TO_SLEEP,
-            SpaceParameter::SPACE_PARAM_SOLVER_ITERATIONS => DEFAULT_SOLVER_ITERATIONS,
-            _ => 0.0,
-        }
-    }
-    pub const fn get_rid(&self) -> Rid {
-        self.rid
-    }
+    rigid_body_set: RigidBodySet,
+    collider_set: ColliderSet,
+    gravity: Vector<Real>,
+    integration_parameters: IntegrationParameters,
+    physics_pipeline: PhysicsPipeline,
+    island_manager: IslandManager,
+    broad_phase: BroadPhase,
+    narrow_phase: NarrowPhase,
+    impulse_joint_set: ImpulseJointSet,
+    multibody_joint_set: MultibodyJointSet,
+    ccd_solver: CCDSolver,
+    physics_hooks: (),
+    event_handler: (),
 }
 
 impl RapierSpace {
-    pub fn new(rid: Rid) -> Self {
-        Self {
-            rid,
-            default_area: None,
-        }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn step(&mut self) {
+        self.physics_pipeline.step(
+            &self.gravity,
+            &self.integration_parameters,
+            &mut self.island_manager,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.rigid_body_set,
+            &mut self.collider_set,
+            &mut self.impulse_joint_set,
+            &mut self.multibody_joint_set,
+            &mut self.ccd_solver,
+            None,
+            &self.physics_hooks,
+            &self.event_handler,
+        );
+    }
+
+    pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
+        let collider = if area.borrow().shapes.len() == 1 {
+            let shape_instance = &area.borrow().shapes[0];
+            let shape = shape_instance.shape.borrow().get_shape();
+
+            ColliderBuilder::new(shape)
+                .position(shape_instance.isometry)
+                .sensor(true)
+                .enabled(!shape_instance.disabled)
+                .build()
+        } else {
+            let compound_shapes: Vec<(Isometry<f32>, SharedShape)> = area
+                .borrow()
+                .shapes
+                .iter()
+                .filter(|shape_instance| !shape_instance.disabled)
+                .map(|shape_instance| {
+                    (
+                        shape_instance.isometry,
+                        shape_instance.shape.borrow().get_shape(),
+                    )
+                })
+                .collect();
+            ColliderBuilder::compound(compound_shapes).build()
+        };
+
+        self.collider_set.insert(collider);
+    }
+
+    pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
+        let collider = if body.borrow().shapes.len() == 1 {
+            let shape_instance = &body.borrow().shapes[0];
+            let shape = shape_instance.shape.borrow().get_shape();
+
+            ColliderBuilder::new(shape)
+                .position(shape_instance.isometry)
+                .sensor(true)
+                .enabled(!shape_instance.disabled)
+                .build()
+        } else {
+            let compound_shapes: Vec<(Isometry<f32>, SharedShape)> = body
+                .borrow()
+                .shapes
+                .iter()
+                .filter(|shape_instance| !shape_instance.disabled)
+                .map(|shape_instance| {
+                    (
+                        shape_instance.isometry,
+                        shape_instance.shape.borrow().get_shape(),
+                    )
+                })
+                .collect();
+            ColliderBuilder::compound(compound_shapes).build()
+        };
     }
 }

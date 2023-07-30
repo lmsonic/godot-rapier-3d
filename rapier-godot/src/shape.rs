@@ -1,99 +1,49 @@
 #![allow(clippy::module_name_repetitions)]
+
 use std::{cell::RefCell, rc::Rc};
 
-use godot::prelude::{math::ApproxEq, *};
+use godot::prelude::*;
 use rapier3d::prelude::*;
 
-type GodotShapeType = godot::engine::physics_server_3d::ShapeType;
-const DEFAULT_SOLVER_BIAS: f32 = 0.0;
-
 pub trait RapierShape {
-    fn get_rid(&self) -> Rid;
-    fn set_rid(&mut self, rid: Rid);
     fn get_data(&self) -> Variant;
     fn set_data(&mut self, data: Variant);
-    fn get_custom_solver_bias(&self) -> f32 {
-        DEFAULT_SOLVER_BIAS
-    }
-
-    fn set_custom_solver_bias(&mut self, bias: f32) {
-        if !bias.approx_eq(&DEFAULT_SOLVER_BIAS) {
-            godot_warn!("Custom solver bias is not supported in Godot Rapier");
-        }
-    }
-
-    fn get_margin(&self) -> f32 {
-        0.0
-    }
-
-    fn set_margin(&mut self, _margin: f32) {}
-    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
+    fn get_shape(&self) -> SharedShape;
 }
 
-pub trait RapierCollisionObject {}
-
 pub struct RapierShapeInstance {
-    parent: Rc<RefCell<dyn RapierCollisionObject>>,
-    shape: Rc<RefCell<dyn RapierShape>>,
-    transform: Transform3D,
-    scale: Vector3,
-    disabled: bool,
+    pub shape: Rc<RefCell<dyn RapierShape>>,
+    pub isometry: Isometry<f32>,
+    pub disabled: bool,
 }
 
 impl RapierShapeInstance {
-    pub fn with_transform_scale_disabled(
-        parent: Rc<RefCell<dyn RapierCollisionObject>>,
+    pub fn new(
         shape: Rc<RefCell<dyn RapierShape>>,
-        transform: Transform3D,
-        scale: Vector3,
+        isometry: Isometry<f32>,
         disabled: bool,
     ) -> Self {
         Self {
-            parent,
             shape,
-            transform,
-            scale,
+            isometry,
             disabled,
-        }
-    }
-
-    pub fn new(
-        parent: Rc<RefCell<dyn RapierCollisionObject>>,
-        shape: Rc<RefCell<dyn RapierShape>>,
-    ) -> Self {
-        Self {
-            parent,
-            shape,
-            transform: Transform3D::default(),
-            scale: Vector3::ONE,
-            disabled: false,
         }
     }
 }
 
 pub struct RapierSphereShape {
     shape: Ball,
-    rid: Rid,
 }
 
 impl RapierSphereShape {
-    pub fn new(rid: Rid) -> Self {
+    pub fn new() -> Self {
         Self {
             shape: Ball::new(0.5),
-            rid,
         }
     }
 }
 
 impl RapierShape for RapierSphereShape {
-    fn get_rid(&self) -> Rid {
-        self.rid
-    }
-
-    fn set_rid(&mut self, rid: Rid) {
-        self.rid = rid;
-    }
-
     fn get_data(&self) -> Variant {
         Variant::from(self.shape.radius)
     }
@@ -107,34 +57,24 @@ impl RapierShape for RapierSphereShape {
         };
     }
 
-    fn get_type(&self) -> GodotShapeType {
-        GodotShapeType::SHAPE_SPHERE
+    fn get_shape(&self) -> SharedShape {
+        SharedShape::new(self.shape)
     }
 }
 
 pub struct RapierBoxShape {
     shape: Cuboid,
-    rid: Rid,
 }
 
 impl RapierBoxShape {
-    pub fn new(rid: Rid) -> Self {
+    pub fn new() -> Self {
         Self {
             shape: Cuboid::new(vector![0.5, 0.5, 0.5]),
-            rid,
         }
     }
 }
 
 impl RapierShape for RapierBoxShape {
-    fn get_rid(&self) -> Rid {
-        self.rid
-    }
-
-    fn set_rid(&mut self, rid: Rid) {
-        self.rid = rid;
-    }
-
     fn get_data(&self) -> Variant {
         Variant::from(Vector3::new(
             self.shape.half_extents.x,
@@ -151,35 +91,24 @@ impl RapierShape for RapierBoxShape {
             Err(err) => godot_error!("{:?}", err),
         };
     }
-
-    fn get_type(&self) -> GodotShapeType {
-        GodotShapeType::SHAPE_BOX
+    fn get_shape(&self) -> SharedShape {
+        SharedShape::new(self.shape)
     }
 }
 
 pub struct RapierCapsuleShape {
     shape: Capsule,
-    rid: Rid,
 }
 
 impl RapierCapsuleShape {
-    pub fn new(rid: Rid) -> Self {
+    pub fn new() -> Self {
         Self {
             shape: Capsule::new_y(0.5, 0.2),
-            rid,
         }
     }
 }
 
 impl RapierShape for RapierCapsuleShape {
-    fn get_rid(&self) -> Rid {
-        self.rid
-    }
-
-    fn set_rid(&mut self, rid: Rid) {
-        self.rid = rid;
-    }
-
     fn get_data(&self) -> Variant {
         Variant::from(dict! {"radius": self.shape.radius,"height":self.shape.height()})
     }
@@ -201,35 +130,24 @@ impl RapierShape for RapierCapsuleShape {
             Err(e) => godot_error!("{:?}", e),
         };
     }
-
-    fn get_type(&self) -> GodotShapeType {
-        GodotShapeType::SHAPE_CAPSULE
+    fn get_shape(&self) -> SharedShape {
+        SharedShape::new(self.shape)
     }
 }
 
 pub struct RapierCylinderShape {
     shape: Cylinder,
-    rid: Rid,
 }
 
 impl RapierCylinderShape {
-    pub fn new(rid: Rid) -> Self {
+    pub fn new() -> Self {
         Self {
             shape: Cylinder::new(0.5, 0.2),
-            rid,
         }
     }
 }
 
 impl RapierShape for RapierCylinderShape {
-    fn get_rid(&self) -> Rid {
-        self.rid
-    }
-
-    fn set_rid(&mut self, rid: Rid) {
-        self.rid = rid;
-    }
-
     fn get_data(&self) -> Variant {
         Variant::from(dict! {"radius": self.shape.radius,"height":self.shape.half_height*2.0})
     }
@@ -251,8 +169,7 @@ impl RapierShape for RapierCylinderShape {
             Err(e) => godot_error!("{:?}", e),
         };
     }
-
-    fn get_type(&self) -> GodotShapeType {
-        GodotShapeType::SHAPE_CYLINDER
+    fn get_shape(&self) -> SharedShape {
+        SharedShape::new(self.shape)
     }
 }

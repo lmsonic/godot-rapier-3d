@@ -2,6 +2,14 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
+
+use godot::engine::native::PhysicsServer3DExtensionMotionResult;
+use godot::engine::physics_server_3d::{BodyMode, SpaceParameter};
+use godot::engine::PhysicsServer3DExtensionVirtual;
+use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
+use godot::prelude::*;
+use rapier3d::prelude::*;
 
 use crate::area::RapierArea;
 use crate::body::RapierBody;
@@ -10,20 +18,13 @@ use crate::shape::{
 };
 use crate::space::RapierSpace;
 
-use godot::engine::native::PhysicsServer3DExtensionMotionResult;
-use godot::engine::physics_server_3d::{BodyMode, SpaceParameter};
-use godot::engine::PhysicsServer3DExtensionVirtual;
-use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
-use godot::prelude::*;
-
 #[derive(GodotClass)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
     shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
-    bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
-    areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
     spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
-    active_spaces: HashSet<Rid>,
+    areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
+    bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
     active: bool,
 }
 
@@ -31,6 +32,7 @@ pub struct RapierPhysicsServer3D {
 fn make_rid() -> Rid {
     rid_from_int64(rid_allocate_id())
 }
+
 #[godot_api]
 impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn world_boundary_shape_create(&mut self) -> Rid {
@@ -41,25 +43,25 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierSphereShape::new(rid);
+        let shape = RapierSphereShape::new();
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn box_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierBoxShape::new(rid);
+        let shape = RapierBoxShape::new();
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierCapsuleShape::new(rid);
+        let shape = RapierCapsuleShape::new();
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn cylinder_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierCylinderShape::new(rid);
+        let shape = RapierCylinderShape::new();
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
@@ -73,8 +75,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn custom_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        Rid::Invalid
     }
+
     fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
         self.shapes.get_mut(&shape_rid).map_or_else(
             || {
@@ -86,98 +89,40 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         );
     }
     fn shape_set_custom_solver_bias(&mut self, shape_rid: Rid, bias: f32) {
-        self.shapes.get_mut(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-            },
-            |shape| {
-                shape.borrow_mut().set_custom_solver_bias(bias);
-            },
-        );
+        unimplemented!()
     }
     fn shape_set_margin(&mut self, shape_rid: Rid, margin: f32) {
-        self.shapes.get_mut(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-            },
-            |shape| {
-                shape.borrow_mut().set_margin(margin);
-            },
-        );
+        unimplemented!()
     }
     fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
-        self.shapes.get(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-                0.0
-            },
-            |shape| shape.borrow().get_margin(),
-        )
+        unimplemented!()
     }
     fn shape_get_type(&self, shape_rid: Rid) -> godot::engine::physics_server_3d::ShapeType {
-        self.shapes.get(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-                godot::engine::physics_server_3d::ShapeType::SHAPE_CUSTOM
-            },
-            |shape| shape.borrow().get_type(),
-        )
+        unimplemented!()
     }
     fn shape_get_data(&self, shape_rid: Rid) -> Variant {
-        self.shapes.get(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-                Variant::nil()
-            },
-            |shape| shape.borrow().get_data(),
-        )
+        unimplemented!()
     }
     fn shape_get_custom_solver_bias(&self, shape_rid: Rid) -> f32 {
-        self.shapes.get(&shape_rid).map_or_else(
-            || {
-                godot_error!("RID doesn't correspond to any shape");
-                0.0
-            },
-            |shape| shape.borrow().get_custom_solver_bias(),
-        )
+        unimplemented!()
     }
     fn space_create(&mut self) -> Rid {
         let rid = make_rid();
-        let mut space = Rc::new(RefCell::new(RapierSpace::new(rid)));
-        self.spaces.insert(rid, space.clone());
-
-        let default_area_id = self.area_create();
-        if let Some(default_area) = self.areas.get_mut(&default_area_id) {
-            space.borrow_mut().set_default_area(default_area.clone());
-            default_area.borrow_mut().set_space(space);
-        }
+        let space = RapierSpace::new();
+        self.spaces.insert(rid, Rc::new(RefCell::new(space)));
         rid
     }
     fn space_set_active(&mut self, space_id: Rid, active: bool) {
-        if let Some(space) = self.spaces.get_mut(&space_id) {
-            if active {
-                self.active_spaces.insert(space_id);
-            } else {
-                self.active_spaces.remove(&space_id);
-            }
-        }
+        unimplemented!()
     }
     fn space_is_active(&self, space_id: Rid) -> bool {
-        if let Some(space) = self.spaces.get(&space_id) {
-            return self.active_spaces.contains(&space_id);
-        }
-        false
+        unimplemented!()
     }
     fn space_set_param(&mut self, space_id: Rid, param: SpaceParameter, value: f32) {
-        if let Some(space) = self.spaces.get_mut(&space_id) {
-            space.borrow_mut().set_param(param, value);
-        }
+        unimplemented!()
     }
     fn space_get_param(&self, space_id: Rid, param: SpaceParameter) -> f32 {
-        if let Some(space) = self.spaces.get(&space_id) {
-            return space.borrow_mut().get_param(param);
-        }
-        0.0
+        unimplemented!()
     }
     fn space_get_direct_state(
         &mut self,
@@ -196,23 +141,24 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_create(&mut self) -> Rid {
         let rid = make_rid();
-        let area = RapierArea::new(rid);
+        let area = RapierArea::new();
         self.areas.insert(rid, Rc::new(RefCell::new(area)));
         rid
     }
     fn area_set_space(&mut self, area_id: Rid, space_id: Rid) {
         if let Some(area) = self.areas.get_mut(&area_id) {
-            if let Some(space) = self.spaces.get_mut(&space_id) {
-                area.borrow_mut().set_space(space.clone());
-            };
-        };
+            if let Some(space) = self.spaces.get(&space_id) {
+                area.borrow_mut().space_id = Some(space_id);
+                space.borrow_mut().add_area(area);
+            }
+        }
     }
     fn area_get_space(&self, area_id: Rid) -> Rid {
         if let Some(area) = self.areas.get(&area_id) {
-            if let Some(space) = area.borrow().get_space() {
-                return space.borrow().get_rid();
-            };
-        };
+            if let Some(space_id) = area.borrow().space_id {
+                return space_id;
+            }
+        }
         Rid::Invalid
     }
     fn area_add_shape(
@@ -223,11 +169,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         disabled: bool,
     ) {
         if let Some(area) = self.areas.get_mut(&area_id) {
-            if let Some(shape) = self.shapes.get_mut(&shape_id) {
+            if let Some(shape) = self.shapes.get(&shape_id) {
                 area.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
-            };
-        };
+            }
+        }
     }
     fn area_set_shape(&mut self, area: Rid, shape_idx: i32, shape: Rid) {
         unimplemented!()
@@ -306,15 +252,26 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_create(&mut self) -> Rid {
         let rid = make_rid();
-        let body = RapierBody::new(rid);
-        self.bodies.insert(rid, Rc::new(RefCell::new(body)));
+        let area = RapierArea::new();
+        self.areas.insert(rid, Rc::new(RefCell::new(area)));
         rid
     }
+
     fn body_set_space(&mut self, body_id: Rid, space_id: Rid) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body_id) {
+            if let Some(space) = self.spaces.get(&space_id) {
+                body.borrow_mut().space_id = Some(space_id);
+                space.borrow_mut().add_body(body);
+            }
+        }
     }
-    fn body_get_space(&self, body: Rid) -> Rid {
-        unimplemented!()
+    fn body_get_space(&self, body_id: Rid) -> Rid {
+        if let Some(area) = self.bodies.get(&body_id) {
+            if let Some(space_id) = area.borrow().space_id {
+                return space_id;
+            }
+        }
+        Rid::Invalid
     }
     fn body_set_mode(&mut self, body: Rid, mode: BodyMode) {
         unimplemented!()
@@ -322,8 +279,19 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_get_mode(&self, body: Rid) -> BodyMode {
         unimplemented!()
     }
-    fn body_add_shape(&mut self, body: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
-        unimplemented!()
+    fn body_add_shape(
+        &mut self,
+        body_id: Rid,
+        shape_id: Rid,
+        transform: Transform3D,
+        disabled: bool,
+    ) {
+        if let Some(body) = self.bodies.get_mut(&body_id) {
+            if let Some(shape) = self.shapes.get(&shape_id) {
+                body.borrow_mut()
+                    .add_shape(shape.clone(), transform, disabled);
+            }
+        }
     }
     fn body_set_shape(&mut self, body: Rid, shape_idx: i32, shape: Rid) {
         unimplemented!()

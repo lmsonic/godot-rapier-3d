@@ -13,6 +13,7 @@ use rapier3d::prelude::*;
 
 use crate::area::RapierArea;
 use crate::body::RapierBody;
+use crate::collision_object::RapierCollisionObject;
 use crate::shape::{
     RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
 };
@@ -43,25 +44,25 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierSphereShape::new();
+        let shape = RapierSphereShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn box_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierBoxShape::new();
+        let shape = RapierBoxShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierCapsuleShape::new();
+        let shape = RapierCapsuleShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn cylinder_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = RapierCylinderShape::new();
+        let shape = RapierCylinderShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
@@ -148,16 +149,17 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_set_space(&mut self, area_id: Rid, space_id: Rid) {
         if let Some(area) = self.areas.get_mut(&area_id) {
             if let Some(space) = self.spaces.get(&space_id) {
-                let handle = space.borrow_mut().add_area(area);
-                area.borrow_mut().space_id = Some(space_id);
-                area.borrow_mut().handle = Some(handle);
+                space.borrow_mut().add_area(area);
+                area.borrow_mut().set_space_id(space_id);
             }
         }
     }
     fn area_get_space(&self, area_id: Rid) -> Rid {
         if let Some(area) = self.areas.get(&area_id) {
-            if let Some(space_id) = area.borrow().space_id {
-                return space_id;
+            if let Some(space_id) = area.borrow().get_space_id() {
+                if self.spaces.contains_key(&space_id) {
+                    return space_id;
+                }
             }
         }
         Rid::Invalid
@@ -200,11 +202,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_clear_shapes(&mut self, area: Rid) {
         unimplemented!()
     }
-    fn area_attach_object_instance_id(&mut self, area: Rid, id: u64) {
-        unimplemented!()
+    fn area_attach_object_instance_id(&mut self, area_id: Rid, id: u64) {
+        if let Some(area) = self.areas.get_mut(&area_id) {
+            area.borrow_mut().set_instance_id(id);
+        }
     }
-    fn area_get_object_instance_id(&self, area: Rid) -> u64 {
-        unimplemented!()
+    fn area_get_object_instance_id(&self, area_id: Rid) -> u64 {
+        if let Some(area) = self.areas.get(&area_id) {
+            if let Some(id) = area.borrow_mut().get_instance_id() {
+                return id;
+            };
+        }
+        0
     }
     fn area_set_param(
         &mut self,
@@ -253,32 +262,39 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_create(&mut self) -> Rid {
         let rid = make_rid();
-        let area = RapierArea::new();
-        self.areas.insert(rid, Rc::new(RefCell::new(area)));
+        let body = RapierBody::new();
+        self.bodies.insert(rid, Rc::new(RefCell::new(body)));
         rid
     }
 
     fn body_set_space(&mut self, body_id: Rid, space_id: Rid) {
         if let Some(body) = self.bodies.get_mut(&body_id) {
             if let Some(space) = self.spaces.get(&space_id) {
-                body.borrow_mut().space_id = Some(space_id);
-                //space.borrow_mut().add_body(body);
+                body.borrow_mut().set_space_id(space_id);
+                space.borrow_mut().add_body(body);
             }
         }
     }
     fn body_get_space(&self, body_id: Rid) -> Rid {
-        if let Some(area) = self.bodies.get(&body_id) {
-            if let Some(space_id) = area.borrow().space_id {
-                return space_id;
+        if let Some(body) = self.bodies.get(&body_id) {
+            if let Some(space_id) = body.borrow().get_space_id() {
+                if self.spaces.contains_key(&space_id) {
+                    return space_id;
+                }
             }
         }
         Rid::Invalid
     }
-    fn body_set_mode(&mut self, body: Rid, mode: BodyMode) {
-        unimplemented!()
+    fn body_set_mode(&mut self, body_id: Rid, mode: BodyMode) {
+        if let Some(body) = self.bodies.get(&body_id) {
+            body.borrow_mut().set_body_mode(mode);
+        }
     }
-    fn body_get_mode(&self, body: Rid) -> BodyMode {
-        unimplemented!()
+    fn body_get_mode(&self, body_id: Rid) -> BodyMode {
+        if let Some(body) = self.bodies.get(&body_id) {
+            return body.borrow().get_body_mode();
+        }
+        BodyMode::BODY_MODE_STATIC
     }
     fn body_add_shape(
         &mut self,
@@ -318,11 +334,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_clear_shapes(&mut self, body: Rid) {
         unimplemented!()
     }
-    fn body_attach_object_instance_id(&mut self, body: Rid, id: u64) {
-        unimplemented!()
+    fn body_attach_object_instance_id(&mut self, body_id: Rid, id: u64) {
+        if let Some(body) = self.bodies.get_mut(&body_id) {
+            body.borrow_mut().set_instance_id(id);
+        }
     }
-    fn body_get_object_instance_id(&self, body: Rid) -> u64 {
-        unimplemented!()
+    fn body_get_object_instance_id(&self, body_id: Rid) -> u64 {
+        if let Some(body) = self.bodies.get(&body_id) {
+            if let Some(id) = body.borrow_mut().get_instance_id() {
+                return id;
+            };
+        }
+        0
     }
     fn body_set_enable_continuous_collision_detection(&mut self, body: Rid, enable: bool) {
         unimplemented!()
@@ -471,8 +494,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_is_omitting_force_integration(&self, body: Rid) -> bool {
         unimplemented!()
     }
-    fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
-        unimplemented!()
+    fn body_set_state_sync_callback(&mut self, body_id: Rid, callable: Callable) {
+        if let Some(body) = self.bodies.get_mut(&body_id) {
+            body.borrow_mut().set_body_state_callback(callable);
+        }
     }
     fn body_set_force_integration_callback(
         &mut self,
@@ -827,7 +852,17 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn free_rid(&mut self, rid: Rid) {
-        unimplemented!()
+        if self.shapes.contains_key(&rid) {
+            self.shapes.remove(&rid);
+        } else if self.bodies.contains_key(&rid) {
+            self.bodies.remove(&rid);
+        } else if self.areas.contains_key(&rid) {
+            self.areas.remove(&rid);
+        } else if self.spaces.contains_key(&rid) {
+            self.spaces.remove(&rid);
+        } else {
+            godot_error!("Failed to free RID: The specified RID has no owner.");
+        }
     }
     fn set_active(&mut self, active: bool) {
         self.active = active;

@@ -5,7 +5,10 @@ use std::{cell::RefCell, rc::Rc};
 use godot::prelude::*;
 use rapier3d::prelude::*;
 
-pub trait RapierShape {
+use crate::collision_object::RapierCollisionObject;
+
+pub trait RapierShape: Drop {
+    fn rid(&self) -> Rid;
     fn get_data(&self) -> Variant;
     fn set_data(&mut self, data: Variant);
     fn get_shape(&self) -> SharedShape;
@@ -33,12 +36,24 @@ impl RapierShapeInstance {
 
 pub struct RapierSphereShape {
     shape: Ball,
+    owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
+    rid: Rid,
 }
 
 impl RapierSphereShape {
-    pub fn new() -> Self {
+    pub fn new(rid: Rid) -> Self {
         Self {
             shape: Ball::new(0.5),
+            owners: vec![],
+            rid,
+        }
+    }
+}
+
+impl Drop for RapierSphereShape {
+    fn drop(&mut self) {
+        for owner in &self.owners {
+            owner.borrow_mut().remove_shape(self.rid());
         }
     }
 }
@@ -60,16 +75,32 @@ impl RapierShape for RapierSphereShape {
     fn get_shape(&self) -> SharedShape {
         SharedShape::new(self.shape)
     }
+
+    fn rid(&self) -> Rid {
+        self.rid
+    }
 }
 
 pub struct RapierBoxShape {
     shape: Cuboid,
+    owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
+    rid: Rid,
+}
+
+impl Drop for RapierBoxShape {
+    fn drop(&mut self) {
+        for owner in &self.owners {
+            owner.borrow_mut().remove_shape(self.rid());
+        }
+    }
 }
 
 impl RapierBoxShape {
-    pub fn new() -> Self {
+    pub fn new(rid: Rid) -> Self {
         Self {
             shape: Cuboid::new(vector![0.5, 0.5, 0.5]),
+            owners: vec![],
+            rid,
         }
     }
 }
@@ -94,16 +125,32 @@ impl RapierShape for RapierBoxShape {
     fn get_shape(&self) -> SharedShape {
         SharedShape::new(self.shape)
     }
+
+    fn rid(&self) -> Rid {
+        self.rid
+    }
 }
 
 pub struct RapierCapsuleShape {
     shape: Capsule,
+    owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
+    rid: Rid,
 }
 
 impl RapierCapsuleShape {
-    pub fn new() -> Self {
+    pub fn new(rid: Rid) -> Self {
         Self {
             shape: Capsule::new_y(0.5, 0.2),
+            owners: vec![],
+            rid,
+        }
+    }
+}
+
+impl Drop for RapierCapsuleShape {
+    fn drop(&mut self) {
+        for owner in &self.owners {
+            owner.borrow_mut().remove_shape(self.rid());
         }
     }
 }
@@ -133,16 +180,32 @@ impl RapierShape for RapierCapsuleShape {
     fn get_shape(&self) -> SharedShape {
         SharedShape::new(self.shape)
     }
+
+    fn rid(&self) -> Rid {
+        self.rid
+    }
 }
 
 pub struct RapierCylinderShape {
     shape: Cylinder,
+    owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
+    rid: Rid,
 }
 
 impl RapierCylinderShape {
-    pub fn new() -> Self {
+    pub fn new(rid: Rid) -> Self {
         Self {
             shape: Cylinder::new(0.5, 0.2),
+            owners: vec![],
+            rid,
+        }
+    }
+}
+
+impl Drop for RapierCylinderShape {
+    fn drop(&mut self) {
+        for owner in &self.owners {
+            owner.borrow_mut().remove_shape(self.rid());
         }
     }
 }
@@ -171,5 +234,9 @@ impl RapierShape for RapierCylinderShape {
     }
     fn get_shape(&self) -> SharedShape {
         SharedShape::new(self.shape)
+    }
+
+    fn rid(&self) -> Rid {
+        self.rid
     }
 }

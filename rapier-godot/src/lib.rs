@@ -13,6 +13,7 @@ struct RapierPhysics;
 
 mod area;
 mod body;
+mod collision_object;
 mod direct_body_state_3d;
 mod direct_space_state_3d;
 mod math;

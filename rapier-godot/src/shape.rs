@@ -7,11 +7,18 @@ use rapier3d::prelude::*;
 
 use crate::collision_object::RapierCollisionObject;
 
-pub trait RapierShape: Drop {
+pub trait RapierShape {
     fn rid(&self) -> Rid;
     fn get_data(&self) -> Variant;
     fn set_data(&mut self, data: Variant);
     fn get_shape(&self) -> SharedShape;
+    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>>;
+
+    fn remove_from_owners(&self) {
+        for owner in self.owners() {
+            owner.borrow_mut().remove_shape_rid(self.rid());
+        }
+    }
 }
 
 pub struct RapierShapeInstance {
@@ -50,14 +57,6 @@ impl RapierSphereShape {
     }
 }
 
-impl Drop for RapierSphereShape {
-    fn drop(&mut self) {
-        for owner in &self.owners {
-            owner.borrow_mut().remove_shape_rid(self.rid());
-        }
-    }
-}
-
 impl RapierShape for RapierSphereShape {
     fn get_data(&self) -> Variant {
         Variant::from(self.shape.radius)
@@ -79,20 +78,16 @@ impl RapierShape for RapierSphereShape {
     fn rid(&self) -> Rid {
         self.rid
     }
+
+    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &self.owners
+    }
 }
 
 pub struct RapierBoxShape {
     shape: Cuboid,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
-}
-
-impl Drop for RapierBoxShape {
-    fn drop(&mut self) {
-        for owner in &self.owners {
-            owner.borrow_mut().remove_shape_rid(self.rid());
-        }
-    }
 }
 
 impl RapierBoxShape {
@@ -129,6 +124,9 @@ impl RapierShape for RapierBoxShape {
     fn rid(&self) -> Rid {
         self.rid
     }
+    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &self.owners
+    }
 }
 
 pub struct RapierCapsuleShape {
@@ -143,14 +141,6 @@ impl RapierCapsuleShape {
             shape: Capsule::new_y(0.5, 0.2),
             owners: vec![],
             rid,
-        }
-    }
-}
-
-impl Drop for RapierCapsuleShape {
-    fn drop(&mut self) {
-        for owner in &self.owners {
-            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }
@@ -184,6 +174,9 @@ impl RapierShape for RapierCapsuleShape {
     fn rid(&self) -> Rid {
         self.rid
     }
+    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &self.owners
+    }
 }
 
 pub struct RapierCylinderShape {
@@ -198,14 +191,6 @@ impl RapierCylinderShape {
             shape: Cylinder::new(0.5, 0.2),
             owners: vec![],
             rid,
-        }
-    }
-}
-
-impl Drop for RapierCylinderShape {
-    fn drop(&mut self) {
-        for owner in &self.owners {
-            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }
@@ -238,5 +223,8 @@ impl RapierShape for RapierCylinderShape {
 
     fn rid(&self) -> Rid {
         self.rid
+    }
+    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &self.owners
     }
 }

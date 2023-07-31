@@ -39,7 +39,9 @@ impl RapierSpace {
         Self::default()
     }
 
-    fn step(&mut self) {
+    pub fn call_queries(&mut self) {}
+
+    pub fn step(&mut self) {
         self.physics_pipeline.step(
             &self.gravity,
             &self.integration_parameters,

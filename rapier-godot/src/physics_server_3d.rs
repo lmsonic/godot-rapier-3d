@@ -20,11 +20,12 @@ use crate::shape::{
 };
 use crate::space::RapierSpace;
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Default)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
     shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
     spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
+    active_spaces: HashSet<Rid>,
     areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
     bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
     active: bool,
@@ -115,10 +116,19 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
     fn space_set_active(&mut self, space: Rid, active: bool) {
-        unimplemented!()
+        if self.spaces.contains_key(&space) {
+            if active {
+                self.active_spaces.insert(space);
+            } else {
+                self.active_spaces.remove(&space);
+            }
+        }
     }
     fn space_is_active(&self, space: Rid) -> bool {
-        unimplemented!()
+        if self.spaces.contains_key(&space) {
+            return self.active_spaces.contains(&space);
+        }
+        false
     }
     fn space_set_param(&mut self, space: Rid, param: SpaceParameter, value: f32) {
         unimplemented!()
@@ -897,7 +907,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn free_rid(&mut self, rid: Rid) {
-        if self.shapes.contains_key(&rid) {
+        if let Some(shape) = self.shapes.remove(&rid) {
+            shape.borrow().remove_from_owners();
             self.shapes.remove(&rid);
         } else if self.bodies.contains_key(&rid) {
             self.bodies.remove(&rid);
@@ -914,17 +925,29 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn init_ext(&mut self) {}
     fn step(&mut self, step: f32) {
-        unimplemented!()
+        if !self.active {
+            return;
+        }
+
+        for space in &self.active_spaces {
+            if let Some(space) = self.spaces.get(space) {
+                space.borrow_mut().step();
+            };
+        }
     }
-    fn sync(&mut self) {
-        unimplemented!()
-    }
+    fn sync(&mut self) {}
     fn flush_queries(&mut self) {
-        unimplemented!()
+        if !self.active {
+            return;
+        }
+
+        for space in &self.active_spaces {
+            if let Some(space) = self.spaces.get(space) {
+                space.borrow_mut().call_queries();
+            };
+        }
     }
-    fn end_sync(&mut self) {
-        unimplemented!()
-    }
+    fn end_sync(&mut self) {}
     fn finish(&mut self) {
         unimplemented!()
     }

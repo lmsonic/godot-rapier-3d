@@ -51,8 +51,32 @@ impl RapierCollisionObject for RapierBody {
         self.instance_id
     }
 
-    fn remove_shape(&mut self, shape_rid: Rid) {
+    fn remove_shape_rid(&mut self, shape_rid: Rid) {
         self.shapes.retain(|s| s.shape.borrow().rid() != shape_rid);
+    }
+    fn remove_nth_shape(&mut self, idx: usize) {
+        self.shapes.swap_remove(idx);
+    }
+
+    fn clear_shapes(&mut self) {
+        self.shapes.clear();
+    }
+
+    fn set_shape(&mut self, idx: usize, s: Rc<RefCell<dyn RapierShape>>) {
+        if let Some(shape) = self.shapes.get_mut(idx) {
+            shape.shape = s.clone();
+        }
+    }
+    fn set_shape_transform(&mut self, idx: usize, transform: Transform3D) {
+        if let Some(shape) = self.shapes.get_mut(idx) {
+            shape.isometry = transform_to_isometry(&transform);
+        }
+    }
+
+    fn set_shape_disabled(&mut self, idx: usize, disabled: bool) {
+        if let Some(shape) = self.shapes.get_mut(idx) {
+            shape.disabled = disabled;
+        }
     }
 }
 

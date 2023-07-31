@@ -53,7 +53,7 @@ impl RapierSphereShape {
 impl Drop for RapierSphereShape {
     fn drop(&mut self) {
         for owner in &self.owners {
-            owner.borrow_mut().remove_shape(self.rid());
+            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }
@@ -90,7 +90,7 @@ pub struct RapierBoxShape {
 impl Drop for RapierBoxShape {
     fn drop(&mut self) {
         for owner in &self.owners {
-            owner.borrow_mut().remove_shape(self.rid());
+            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }
@@ -150,7 +150,7 @@ impl RapierCapsuleShape {
 impl Drop for RapierCapsuleShape {
     fn drop(&mut self) {
         for owner in &self.owners {
-            owner.borrow_mut().remove_shape(self.rid());
+            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }
@@ -205,7 +205,7 @@ impl RapierCylinderShape {
 impl Drop for RapierCylinderShape {
     fn drop(&mut self) {
         for owner in &self.owners {
-            owner.borrow_mut().remove_shape(self.rid());
+            owner.borrow_mut().remove_shape_rid(self.rid());
         }
     }
 }

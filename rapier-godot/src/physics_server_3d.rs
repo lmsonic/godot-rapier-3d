@@ -14,6 +14,7 @@ use rapier3d::prelude::*;
 use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
+use crate::math::isometry_to_transform;
 use crate::shape::{
     RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
 };
@@ -113,16 +114,16 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         self.spaces.insert(rid, Rc::new(RefCell::new(space)));
         rid
     }
-    fn space_set_active(&mut self, space_id: Rid, active: bool) {
+    fn space_set_active(&mut self, space: Rid, active: bool) {
         unimplemented!()
     }
-    fn space_is_active(&self, space_id: Rid) -> bool {
+    fn space_is_active(&self, space: Rid) -> bool {
         unimplemented!()
     }
-    fn space_set_param(&mut self, space_id: Rid, param: SpaceParameter, value: f32) {
+    fn space_set_param(&mut self, space: Rid, param: SpaceParameter, value: f32) {
         unimplemented!()
     }
-    fn space_get_param(&self, space_id: Rid, param: SpaceParameter) -> f32 {
+    fn space_get_param(&self, space: Rid, param: SpaceParameter) -> f32 {
         unimplemented!()
     }
     fn space_get_direct_state(
@@ -146,69 +147,91 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         self.areas.insert(rid, Rc::new(RefCell::new(area)));
         rid
     }
-    fn area_set_space(&mut self, area_id: Rid, space_id: Rid) {
-        if let Some(area) = self.areas.get_mut(&area_id) {
+    fn area_set_space(&mut self, area: Rid, space_id: Rid) {
+        if let Some(area) = self.areas.get_mut(&area) {
             if let Some(space) = self.spaces.get(&space_id) {
                 space.borrow_mut().add_area(area);
                 area.borrow_mut().set_space_id(space_id);
             }
         }
     }
-    fn area_get_space(&self, area_id: Rid) -> Rid {
-        if let Some(area) = self.areas.get(&area_id) {
-            if let Some(space_id) = area.borrow().get_space_id() {
-                if self.spaces.contains_key(&space_id) {
-                    return space_id;
+    fn area_get_space(&self, area: Rid) -> Rid {
+        if let Some(area) = self.areas.get(&area) {
+            if let Some(space) = area.borrow().get_space_id() {
+                if self.spaces.contains_key(&space) {
+                    return space;
                 }
             }
         }
         Rid::Invalid
     }
-    fn area_add_shape(
-        &mut self,
-        area_id: Rid,
-        shape_id: Rid,
-        transform: Transform3D,
-        disabled: bool,
-    ) {
-        if let Some(area) = self.areas.get_mut(&area_id) {
-            if let Some(shape) = self.shapes.get(&shape_id) {
+    fn area_add_shape(&mut self, area: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
+        if let Some(area) = self.areas.get_mut(&area) {
+            if let Some(shape) = self.shapes.get(&shape) {
                 area.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
             }
         }
     }
     fn area_set_shape(&mut self, area: Rid, shape_idx: i32, shape: Rid) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            if let Some(shape) = self.shapes.get(&shape) {
+                area.borrow_mut()
+                    .set_shape(shape_idx as usize, shape.clone());
+            }
+        }
     }
     fn area_set_shape_transform(&mut self, area: Rid, shape_idx: i32, transform: Transform3D) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut()
+                .set_shape_transform(shape_idx as usize, transform);
+        }
     }
     fn area_set_shape_disabled(&mut self, area: Rid, shape_idx: i32, disabled: bool) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut()
+                .set_shape_disabled(shape_idx as usize, disabled);
+        }
     }
     fn area_get_shape_count(&self, area: Rid) -> i32 {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            return area.borrow().get_shapes().len() as i32;
+        }
+        -1
     }
     fn area_get_shape(&self, area: Rid, shape_idx: i32) -> Rid {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            if let Some(shape_inst) = area.borrow().get_shapes().get(shape_idx as usize) {
+                return shape_inst.shape.borrow().rid();
+            }
+        }
+        Rid::Invalid
     }
     fn area_get_shape_transform(&self, area: Rid, shape_idx: i32) -> Transform3D {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            if let Some(shape_inst) = area.borrow().get_shapes().get(shape_idx as usize) {
+                return isometry_to_transform(&shape_inst.isometry);
+            }
+        }
+        Transform3D::default()
     }
     fn area_remove_shape(&mut self, area: Rid, shape_idx: i32) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut().remove_nth_shape(shape_idx as usize);
+        }
     }
     fn area_clear_shapes(&mut self, area: Rid) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut().clear_shapes();
+        }
     }
-    fn area_attach_object_instance_id(&mut self, area_id: Rid, id: u64) {
-        if let Some(area) = self.areas.get_mut(&area_id) {
+    fn area_attach_object_instance_id(&mut self, area: Rid, id: u64) {
+        if let Some(area) = self.areas.get_mut(&area) {
             area.borrow_mut().set_instance_id(id);
         }
     }
-    fn area_get_object_instance_id(&self, area_id: Rid) -> u64 {
-        if let Some(area) = self.areas.get(&area_id) {
+    fn area_get_object_instance_id(&self, area: Rid) -> u64 {
+        if let Some(area) = self.areas.get(&area) {
             if let Some(id) = area.borrow_mut().get_instance_id() {
                 return id;
             };
@@ -267,80 +290,102 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
 
-    fn body_set_space(&mut self, body_id: Rid, space_id: Rid) {
-        if let Some(body) = self.bodies.get_mut(&body_id) {
+    fn body_set_space(&mut self, body: Rid, space_id: Rid) {
+        if let Some(body) = self.bodies.get_mut(&body) {
             if let Some(space) = self.spaces.get(&space_id) {
                 body.borrow_mut().set_space_id(space_id);
                 space.borrow_mut().add_body(body);
             }
         }
     }
-    fn body_get_space(&self, body_id: Rid) -> Rid {
-        if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(space_id) = body.borrow().get_space_id() {
-                if self.spaces.contains_key(&space_id) {
-                    return space_id;
+    fn body_get_space(&self, body: Rid) -> Rid {
+        if let Some(body) = self.bodies.get(&body) {
+            if let Some(space) = body.borrow().get_space_id() {
+                if self.spaces.contains_key(&space) {
+                    return space;
                 }
             }
         }
         Rid::Invalid
     }
-    fn body_set_mode(&mut self, body_id: Rid, mode: BodyMode) {
-        if let Some(body) = self.bodies.get(&body_id) {
+    fn body_set_mode(&mut self, body: Rid, mode: BodyMode) {
+        if let Some(body) = self.bodies.get(&body) {
             body.borrow_mut().set_body_mode(mode);
         }
     }
-    fn body_get_mode(&self, body_id: Rid) -> BodyMode {
-        if let Some(body) = self.bodies.get(&body_id) {
+    fn body_get_mode(&self, body: Rid) -> BodyMode {
+        if let Some(body) = self.bodies.get(&body) {
             return body.borrow().get_body_mode();
         }
         BodyMode::BODY_MODE_STATIC
     }
-    fn body_add_shape(
-        &mut self,
-        body_id: Rid,
-        shape_id: Rid,
-        transform: Transform3D,
-        disabled: bool,
-    ) {
-        if let Some(body) = self.bodies.get_mut(&body_id) {
-            if let Some(shape) = self.shapes.get(&shape_id) {
+    fn body_add_shape(&mut self, body: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
+        if let Some(body) = self.bodies.get_mut(&body) {
+            if let Some(shape) = self.shapes.get(&shape) {
                 body.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
             }
         }
     }
     fn body_set_shape(&mut self, body: Rid, shape_idx: i32, shape: Rid) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            if let Some(shape) = self.shapes.get(&shape) {
+                body.borrow_mut()
+                    .set_shape(shape_idx as usize, shape.clone());
+            }
+        }
     }
     fn body_set_shape_transform(&mut self, body: Rid, shape_idx: i32, transform: Transform3D) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut()
+                .set_shape_transform(shape_idx as usize, transform);
+        }
     }
     fn body_set_shape_disabled(&mut self, body: Rid, shape_idx: i32, disabled: bool) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut()
+                .set_shape_disabled(shape_idx as usize, disabled);
+        }
     }
     fn body_get_shape_count(&self, body: Rid) -> i32 {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            return body.borrow().get_shapes().len() as i32;
+        }
+        -1
     }
     fn body_get_shape(&self, body: Rid, shape_idx: i32) -> Rid {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            if let Some(shape_inst) = body.borrow().get_shapes().get(shape_idx as usize) {
+                return shape_inst.shape.borrow().rid();
+            }
+        }
+        Rid::Invalid
     }
     fn body_get_shape_transform(&self, body: Rid, shape_idx: i32) -> Transform3D {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            if let Some(shape_inst) = body.borrow().get_shapes().get(shape_idx as usize) {
+                return isometry_to_transform(&shape_inst.isometry);
+            }
+        }
+        Transform3D::default()
     }
     fn body_remove_shape(&mut self, body: Rid, shape_idx: i32) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().remove_nth_shape(shape_idx as usize);
+        }
     }
     fn body_clear_shapes(&mut self, body: Rid) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().clear_shapes();
+        }
     }
-    fn body_attach_object_instance_id(&mut self, body_id: Rid, id: u64) {
-        if let Some(body) = self.bodies.get_mut(&body_id) {
+    fn body_attach_object_instance_id(&mut self, body: Rid, id: u64) {
+        if let Some(body) = self.bodies.get_mut(&body) {
             body.borrow_mut().set_instance_id(id);
         }
     }
-    fn body_get_object_instance_id(&self, body_id: Rid) -> u64 {
-        if let Some(body) = self.bodies.get(&body_id) {
+    fn body_get_object_instance_id(&self, body: Rid) -> u64 {
+        if let Some(body) = self.bodies.get(&body) {
             if let Some(id) = body.borrow_mut().get_instance_id() {
                 return id;
             };
@@ -494,8 +539,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_is_omitting_force_integration(&self, body: Rid) -> bool {
         unimplemented!()
     }
-    fn body_set_state_sync_callback(&mut self, body_id: Rid, callable: Callable) {
-        if let Some(body) = self.bodies.get_mut(&body_id) {
+    fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
+        if let Some(body) = self.bodies.get_mut(&body) {
             body.borrow_mut().set_body_state_callback(callable);
         }
     }

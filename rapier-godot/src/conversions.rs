@@ -1,4 +1,4 @@
-use godot::prelude::*;
+use godot::{engine::physics_server_3d::BodyMode, prelude::*};
 use rapier3d::{
     na::{Translation3, UnitQuaternion},
     prelude::*,
@@ -24,5 +24,13 @@ pub fn isometry_to_transform(isometry: &Isometry<f32>) -> Transform3D {
     Transform3D {
         basis: Basis::from_quat(godot_quat),
         origin,
+    }
+}
+
+pub const fn body_mode_to_body_type(mode: BodyMode) -> RigidBodyType {
+    match mode {
+        BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => RigidBodyType::Dynamic,
+        BodyMode::BODY_MODE_KINEMATIC => RigidBodyType::KinematicVelocityBased,
+        _ => RigidBodyType::Fixed,
     }
 }

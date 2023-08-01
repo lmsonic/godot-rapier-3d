@@ -14,7 +14,7 @@ use rapier3d::prelude::*;
 use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
-use crate::math::isometry_to_transform;
+use crate::conversions::{isometry_to_transform, transform_to_isometry};
 use crate::shape::{
     RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
 };
@@ -81,8 +81,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         Rid::Invalid
     }
 
-    fn shape_set_data(&mut self, shape_rid: Rid, data: Variant) {
-        self.shapes.get_mut(&shape_rid).map_or_else(
+    fn shape_set_data(&mut self, shape: Rid, data: Variant) {
+        self.shapes.get_mut(&shape).map_or_else(
             || {
                 godot_error!("RID doesn't correspond to any shape");
             },
@@ -91,27 +91,33 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             },
         );
     }
-    fn shape_set_custom_solver_bias(&mut self, shape_rid: Rid, bias: f32) {
+    fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {
         unimplemented!()
     }
-    fn shape_set_margin(&mut self, shape_rid: Rid, margin: f32) {
+    fn shape_set_margin(&mut self, shape: Rid, margin: f32) {
         unimplemented!()
     }
     fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
         unimplemented!()
     }
-    fn shape_get_type(&self, shape_rid: Rid) -> godot::engine::physics_server_3d::ShapeType {
-        unimplemented!()
+    fn shape_get_type(&self, shape: Rid) -> godot::engine::physics_server_3d::ShapeType {
+        if let Some(shape) = self.shapes.get(&shape) {
+            return shape.borrow().get_type();
+        }
+        godot::engine::physics_server_3d::ShapeType::SHAPE_CUSTOM
     }
-    fn shape_get_data(&self, shape_rid: Rid) -> Variant {
-        unimplemented!()
+    fn shape_get_data(&self, shape: Rid) -> Variant {
+        if let Some(shape) = self.shapes.get(&shape) {
+            return shape.borrow().get_data();
+        }
+        Variant::nil()
     }
-    fn shape_get_custom_solver_bias(&self, shape_rid: Rid) -> f32 {
+    fn shape_get_custom_solver_bias(&self, shape: Rid) -> f32 {
         unimplemented!()
     }
     fn space_create(&mut self) -> Rid {
         let rid = make_rid();
-        let space = RapierSpace::new();
+        let space = RapierSpace::new(rid);
         self.spaces.insert(rid, Rc::new(RefCell::new(space)));
         rid
     }
@@ -131,10 +137,15 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         false
     }
     fn space_set_param(&mut self, space: Rid, param: SpaceParameter, value: f32) {
-        unimplemented!()
+        if let Some(space) = self.spaces.get_mut(&space) {
+            space.borrow_mut().set_param(param, value);
+        }
     }
     fn space_get_param(&self, space: Rid, param: SpaceParameter) -> f32 {
-        unimplemented!()
+        if let Some(space) = self.spaces.get(&space) {
+            space.borrow().get_param(param);
+        }
+        0.0
     }
     fn space_get_direct_state(
         &mut self,
@@ -157,19 +168,20 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         self.areas.insert(rid, Rc::new(RefCell::new(area)));
         rid
     }
-    fn area_set_space(&mut self, area: Rid, space_id: Rid) {
+    fn area_set_space(&mut self, area: Rid, space: Rid) {
         if let Some(area) = self.areas.get_mut(&area) {
-            if let Some(space) = self.spaces.get(&space_id) {
+            if let Some(space) = self.spaces.get(&space) {
                 space.borrow_mut().add_area(area);
-                area.borrow_mut().set_space_id(space_id);
+                area.borrow_mut().set_space(space.clone());
             }
         }
     }
     fn area_get_space(&self, area: Rid) -> Rid {
         if let Some(area) = self.areas.get(&area) {
-            if let Some(space) = area.borrow().get_space_id() {
-                if self.spaces.contains_key(&space) {
-                    return space;
+            if let Some(space) = area.borrow().get_space() {
+                let rid = space.borrow().rid();
+                if self.spaces.contains_key(&rid) {
+                    return rid;
                 }
             }
         }
@@ -207,7 +219,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         if let Some(area) = self.areas.get(&area) {
             return area.borrow().get_shapes().len() as i32;
         }
-        -1
+        0
     }
     fn area_get_shape(&self, area: Rid, shape_idx: i32) -> Rid {
         if let Some(area) = self.areas.get(&area) {
@@ -257,7 +269,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn area_set_transform(&mut self, area: Rid, transform: Transform3D) {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            area.borrow_mut().set_transform(transform);
+        }
     }
     fn area_get_param(
         &self,
@@ -267,7 +281,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn area_get_transform(&self, area: Rid) -> Transform3D {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            if let Some(transform) = area.borrow_mut().get_transform() {
+                return transform;
+            }
+        }
+
+        Transform3D::IDENTITY
     }
     fn area_set_collision_layer(&mut self, area: Rid, layer: u32) {
         unimplemented!()
@@ -300,19 +320,20 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
 
-    fn body_set_space(&mut self, body: Rid, space_id: Rid) {
+    fn body_set_space(&mut self, body: Rid, space: Rid) {
         if let Some(body) = self.bodies.get_mut(&body) {
-            if let Some(space) = self.spaces.get(&space_id) {
-                body.borrow_mut().set_space_id(space_id);
+            if let Some(space) = self.spaces.get(&space) {
+                body.borrow_mut().set_space(space.clone());
                 space.borrow_mut().add_body(body);
             }
         }
     }
     fn body_get_space(&self, body: Rid) -> Rid {
         if let Some(body) = self.bodies.get(&body) {
-            if let Some(space) = body.borrow().get_space_id() {
-                if self.spaces.contains_key(&space) {
-                    return space;
+            if let Some(space) = body.borrow().get_space() {
+                let rid = space.borrow().rid();
+                if self.spaces.contains_key(&rid) {
+                    return rid;
                 }
             }
         }
@@ -403,10 +424,15 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         0
     }
     fn body_set_enable_continuous_collision_detection(&mut self, body: Rid, enable: bool) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().set_enable_ccd(enable);
+        }
     }
     fn body_is_continuous_collision_detection_enabled(&self, body: Rid) -> bool {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            return body.borrow_mut().is_ccd_enabled();
+        }
+        false
     }
     fn body_set_collision_layer(&mut self, body: Rid, layer: u32) {
         unimplemented!()
@@ -466,43 +492,71 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn body_apply_central_impulse(&mut self, body: Rid, impulse: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_central_impulse(impulse);
+        }
     }
     fn body_apply_impulse(&mut self, body: Rid, impulse: Vector3, position: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_impulse(impulse, position);
+        }
     }
     fn body_apply_torque_impulse(&mut self, body: Rid, impulse: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_torque_impulse(impulse);
+        }
     }
     fn body_apply_central_force(&mut self, body: Rid, force: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_central_force(force);
+        }
     }
     fn body_apply_force(&mut self, body: Rid, force: Vector3, position: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_force(force, position);
+        }
     }
     fn body_apply_torque(&mut self, body: Rid, torque: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().apply_torque(torque);
+        }
     }
     fn body_add_constant_central_force(&mut self, body: Rid, force: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().add_constant_central_force(force);
+        }
     }
     fn body_add_constant_force(&mut self, body: Rid, force: Vector3, position: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().add_constant_force(force, position);
+        }
     }
     fn body_add_constant_torque(&mut self, body: Rid, torque: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().add_constant_torque(torque);
+        }
     }
     fn body_set_constant_force(&mut self, body: Rid, force: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().set_constant_force(force);
+        }
     }
     fn body_get_constant_force(&self, body: Rid) -> Vector3 {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            return body.borrow_mut().get_constant_force_godot();
+        }
+        Vector3::ZERO
     }
     fn body_set_constant_torque(&mut self, body: Rid, torque: Vector3) {
-        unimplemented!()
+        if let Some(body) = self.bodies.get_mut(&body) {
+            body.borrow_mut().set_constant_torque(torque);
+        }
     }
     fn body_get_constant_torque(&self, body: Rid) -> Vector3 {
-        unimplemented!()
+        if let Some(body) = self.bodies.get(&body) {
+            return body.borrow_mut().get_constant_torque_godot();
+        }
+        Vector3::ZERO
     }
     fn body_set_axis_velocity(&mut self, body: Rid, axis_velocity: Vector3) {
         unimplemented!()

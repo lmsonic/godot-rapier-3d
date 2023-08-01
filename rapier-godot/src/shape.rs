@@ -12,6 +12,7 @@ pub trait RapierShape {
     fn get_data(&self) -> Variant;
     fn set_data(&mut self, data: Variant);
     fn get_shape(&self) -> SharedShape;
+    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>>;
 
     fn remove_from_owners(&self) {
@@ -82,6 +83,10 @@ impl RapierShape for RapierSphereShape {
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
     }
+
+    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
+        godot::engine::physics_server_3d::ShapeType::SHAPE_SPHERE
+    }
 }
 
 pub struct RapierBoxShape {
@@ -126,6 +131,9 @@ impl RapierShape for RapierBoxShape {
     }
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
+    }
+    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
+        godot::engine::physics_server_3d::ShapeType::SHAPE_BOX
     }
 }
 
@@ -177,6 +185,9 @@ impl RapierShape for RapierCapsuleShape {
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
     }
+    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
+        godot::engine::physics_server_3d::ShapeType::SHAPE_CAPSULE
+    }
 }
 
 pub struct RapierCylinderShape {
@@ -226,5 +237,8 @@ impl RapierShape for RapierCylinderShape {
     }
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
+    }
+    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
+        godot::engine::physics_server_3d::ShapeType::SHAPE_CYLINDER
     }
 }

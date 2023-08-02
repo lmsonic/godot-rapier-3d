@@ -92,41 +92,40 @@ impl RapierBody {
     }
 
     pub fn set_body_mode(&mut self, mode: BodyMode) {
-        let set_body_mode = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.set_body_type(body_mode_to_body_type(mode), true);
-            Ok(())
-        };
         self.body_mode = mode;
-        if let Err(e) = set_body_mode() {
-            godot_error!("{e}");
+        if let Some(space) = &self.space {
+            // Avoid sending an error if space is not set yet
+            let set_body_mode = || -> RapierResult<()> {
+                let mut space = space.borrow_mut();
+                let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
+                let body = space
+                    .get_body_mut(handle)
+                    .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
+                body.set_body_type(body_mode_to_body_type(mode), true);
+                Ok(())
+            };
+            if let Err(e) = set_body_mode() {
+                godot_error!("{e}");
+            }
         }
     }
 
     pub fn set_enable_ccd(&mut self, enabled: bool) {
-        let set_enable_ccd = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.enable_ccd(enabled);
-            Ok(())
-        };
-        if let Err(e) = set_enable_ccd() {
-            godot_error!("{e}");
+        self.ccd_enabled = enabled;
+        if let Some(space) = &self.space {
+            // Avoid sending an error if space is not set yet
+            let set_body_mode = || -> RapierResult<()> {
+                let mut space = space.borrow_mut();
+                let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
+                let body = space
+                    .get_body_mut(handle)
+                    .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
+                body.enable_ccd(enabled);
+                Ok(())
+            };
+            if let Err(e) = set_body_mode() {
+                godot_error!("{e}");
+            }
         }
     }
 

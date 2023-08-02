@@ -204,7 +204,9 @@ impl RapierSpace {
         let body_borrow = body.borrow();
         let collider = body_borrow.build_collider(false);
         let body_type = body_mode_to_body_type(body.borrow().get_body_mode());
-        let handle = self.rigid_body_set.insert(RigidBodyBuilder::new(body_type));
+        let handle = self
+            .rigid_body_set
+            .insert(RigidBodyBuilder::new(body_type).ccd_enabled(body_borrow.is_ccd_enabled()));
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         body.borrow_mut().set_handle(handle);

@@ -323,7 +323,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::AreaParameter,
         value: Variant,
     ) {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            area.borrow_mut().set_param(param, value);
+        } else {
+            godot_error!("{}", RapierError::AreaRidMissing(area));
+        }
     }
     fn area_set_transform(&mut self, area: Rid, transform: Transform3D) {
         if let Some(area) = self.areas.get(&area) {
@@ -337,7 +341,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         area: Rid,
         param: godot::engine::physics_server_3d::AreaParameter,
     ) -> Variant {
-        unimplemented!()
+        if let Some(area) = self.areas.get(&area) {
+            return area.borrow_mut().get_param(param);
+        }
+        godot_error!("{}", RapierError::AreaRidMissing(area));
+        Variant::nil()
     }
     fn area_get_transform(&self, area: Rid) -> Transform3D {
         if let Some(area) = self.areas.get(&area) {
@@ -370,6 +378,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_set_monitor_callback(&mut self, area: Rid, callback: Callable) {
         unimplemented!()
+        // if let Some(area) = self.areas.get_mut(&area) {
+        //     area.borrow_mut().set_monitor_callback(callback);
+        // } else {
+        //     godot_error!("{}", RapierError::AreaRidMissing(area));
+        // }
     }
     fn area_set_area_monitor_callback(&mut self, area: Rid, callback: Callable) {
         unimplemented!()

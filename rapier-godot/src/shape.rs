@@ -498,6 +498,10 @@ impl RapierConcaveShape {
             backface_collision: false,
         }
     }
+
+    pub fn get_compound_convex_shapes(&self) -> SharedShape {
+        SharedShape::convex_decomposition(self.shape.vertices(), self.shape.indices())
+    }
 }
 
 fn generate_indices(

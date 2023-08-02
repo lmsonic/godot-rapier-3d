@@ -12,6 +12,7 @@ use crate::{
 pub struct RapierSpace {
     rid: Rid,
     godot_bodies: HashMap<RigidBodyHandle, Rc<RefCell<RapierBody>>>,
+    godot_areas: HashMap<ColliderHandle, Rc<RefCell<RapierArea>>>,
 
     rigid_body_set: RigidBodySet,
     collider_set: ColliderSet,
@@ -42,6 +43,8 @@ impl RapierSpace {
         Self {
             rid,
             godot_bodies: Default::default(),
+            godot_areas: Default::default(),
+
             rigid_body_set: Default::default(),
             collider_set: Default::default(),
             gravity: Default::default(),
@@ -200,6 +203,26 @@ impl RapierSpace {
         area.borrow_mut().set_handle(handle);
     }
 
+    pub fn remove_area(&mut self, handle: ColliderHandle) {
+        self.collider_set.remove(
+            handle,
+            &mut self.island_manager,
+            &mut self.rigid_body_set,
+            false,
+        );
+    }
+
+    pub fn remove_body(&mut self, handle: RigidBodyHandle) {
+        self.rigid_body_set.remove(
+            handle,
+            &mut self.island_manager,
+            &mut self.collider_set,
+            &mut self.impulse_joint_set,
+            &mut self.multibody_joint_set,
+            true,
+        );
+    }
+
     pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
         let body_borrow = body.borrow();
         let collider = body_borrow.build_collider(false);
@@ -211,6 +234,14 @@ impl RapierSpace {
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         body.borrow_mut().set_handle(handle);
         self.godot_bodies.insert(handle, body.clone());
+    }
+    pub fn remove_space_from_bodies_areas(&self) {
+        for area in self.godot_areas.values() {
+            area.borrow_mut().remove_space();
+        }
+        for body in self.godot_bodies.values() {
+            body.borrow_mut().remove_space();
+        }
     }
 
     pub const fn rid(&self) -> Rid {

@@ -14,7 +14,8 @@ use crate::{
 pub trait RapierCollisionObject {
     fn rid(&self) -> Rid;
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>);
-    fn get_space(&self) -> Option<Rc<RefCell<RapierSpace>>>;
+    fn space(&self) -> Option<Rc<RefCell<RapierSpace>>>;
+    fn remove_space(&mut self);
 
     fn add_shape(
         &mut self,
@@ -76,7 +77,9 @@ pub trait RapierCollisionObject {
     fn shapes_mut(&mut self) -> &mut Vec<RapierShapeInstance>;
     fn update_shapes(&mut self);
     fn set_instance_id(&mut self, id: u64);
-    fn get_instance_id(&self) -> Option<u64>;
+    fn instance_id(&self) -> Option<u64>;
+
+    fn remove_from_space(&self);
 
     fn build_shared_shape(&self) -> Option<SharedShape> {
         if self.shapes().is_empty() {
@@ -102,8 +105,8 @@ pub trait RapierCollisionObject {
     }
 
     fn build_collider(&self, is_sensor: bool) -> Collider {
-        self.build_shared_shape().map_or_else(
-            || {
+        self.build_shared_shape().map_or(
+            {
                 // Empty shape collider
                 ColliderBuilder::ball(0.5)
                     .enabled(false)

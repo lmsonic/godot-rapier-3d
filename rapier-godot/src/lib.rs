@@ -17,6 +17,7 @@ mod collision_object;
 mod conversions;
 mod direct_body_state_3d;
 mod direct_space_state_3d;
+mod joint;
 mod physics_server_3d;
 mod shape;
 mod space;
@@ -35,6 +36,8 @@ enum RapierError {
     BodyRidMissing(Rid),
     #[error("RID {0} doesn't correspond to any space")]
     SpaceRidMissing(Rid),
+    #[error("RID {0} doesn't correspond to any joint")]
+    JointRidMissing(Rid),
     #[error("Object with RID {0} doesn't have any space set")]
     ObjectSpaceNotSet(Rid),
     #[error("Area with RID {0} doesn't have any rapier collider handle set")]

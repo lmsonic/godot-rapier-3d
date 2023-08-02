@@ -79,7 +79,7 @@ impl RapierCollisionObject for RapierArea {
         self.space = Some(space);
     }
 
-    fn get_space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
+    fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
         self.space.clone()
     }
 
@@ -94,7 +94,7 @@ impl RapierCollisionObject for RapierArea {
         self.instance_id = Some(id);
     }
 
-    fn get_instance_id(&self) -> Option<u64> {
+    fn instance_id(&self) -> Option<u64> {
         self.instance_id
     }
 
@@ -123,6 +123,19 @@ impl RapierCollisionObject for RapierArea {
         if let Err(e) = update_shapes() {
             godot_error!("{}", e);
         }
+    }
+
+    fn remove_from_space(&self) {
+        if let Some(space) = &self.space {
+            if let Some(handle) = self.handle {
+                space.borrow_mut().remove_area(handle);
+            }
+        }
+    }
+
+    fn remove_space(&mut self) {
+        self.space = None;
+        self.handle = None;
     }
 }
 
@@ -268,5 +281,9 @@ impl RapierArea {
 
     pub fn set_monitorable(&mut self, monitorable: bool) {
         self.monitorable = monitorable;
+    }
+
+    pub fn handle(&self) -> Option<ColliderHandle> {
+        self.handle
     }
 }

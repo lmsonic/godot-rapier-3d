@@ -24,9 +24,10 @@ use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
 use crate::conversions::{isometry_to_transform, transform_to_isometry};
+use crate::joint::RapierJoint;
 use crate::shape::{
-    RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
-    SeparationRayShape, WorldBoundaryShape,
+    RapierBoxShape, RapierCapsuleShape, RapierConcaveShape, RapierConvexShape, RapierCylinderShape,
+    RapierHeightmapShape, RapierShape, RapierSphereShape, SeparationRayShape, WorldBoundaryShape,
 };
 use crate::space::RapierSpace;
 use crate::RapierError;
@@ -39,6 +40,7 @@ pub struct RapierPhysicsServer3D {
     active_spaces: HashSet<Rid>,
     areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
     bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
+    joints: HashMap<Rid, Rc<RefCell<RapierJoint>>>,
     active: bool,
 }
 
@@ -86,13 +88,22 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
     fn convex_polygon_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = RapierConvexShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        rid
     }
     fn concave_polygon_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = RapierConcaveShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        rid
     }
     fn heightmap_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = RapierHeightmapShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        rid
     }
     fn custom_shape_create(&mut self) -> Rid {
         Rid::Invalid
@@ -204,7 +215,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_space(&self, area_id: Rid) -> Rid {
         if let Some(area) = self.areas.get(&area_id) {
-            if let Some(space) = area.borrow().get_space() {
+            if let Some(space) = area.borrow().space() {
                 let rid = space.borrow().rid();
                 if self.spaces.contains_key(&rid) {
                     return rid;
@@ -315,7 +326,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_object_instance_id(&self, area_id: Rid) -> u64 {
         if let Some(area) = self.areas.get(&area_id) {
-            if let Some(id) = area.borrow_mut().get_instance_id() {
+            if let Some(id) = area.borrow_mut().instance_id() {
                 return id;
             }
             godot_error!("{}", RapierError::AreaInstanceIDNotSet(area_id));
@@ -422,7 +433,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_space(&self, body_id: Rid) -> Rid {
         if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(space) = body.borrow().get_space() {
+            if let Some(space) = body.borrow().space() {
                 let rid = space.borrow().rid();
                 if self.spaces.contains_key(&rid) {
                     return rid;
@@ -548,7 +559,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_object_instance_id(&self, body_id: Rid) -> u64 {
         if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(id) = body.borrow_mut().get_instance_id() {
+            if let Some(id) = body.borrow_mut().instance_id() {
                 return id;
             }
             godot_error!("{}", RapierError::BodyInstanceIDNotSet(body_id));
@@ -916,10 +927,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn joint_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let joint = RapierJoint::new(rid);
+        self.joints.insert(rid, Rc::new(RefCell::new(joint)));
+        rid
     }
-    fn joint_clear(&mut self, joint: Rid) {
-        unimplemented!()
+    fn joint_clear(&mut self, joint_id: Rid) {
+        if let Some(joint) = self.joints.get_mut(&joint_id) {
+            let empty_joint = RapierJoint::new(joint_id);
+            joint.replace(empty_joint);
+        } else {
+            godot_error!("{}", RapierError::JointRidMissing(joint_id));
+        }
     }
     fn joint_make_pin(
         &mut self,
@@ -1121,14 +1140,15 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn free_rid(&mut self, rid: Rid) {
         if let Some(shape) = self.shapes.remove(&rid) {
-            shape.borrow().remove_from_owners();
-            self.shapes.remove(&rid);
-        } else if self.bodies.contains_key(&rid) {
-            self.bodies.remove(&rid);
-        } else if self.areas.contains_key(&rid) {
-            self.areas.remove(&rid);
-        } else if self.spaces.contains_key(&rid) {
-            self.spaces.remove(&rid);
+            shape.borrow_mut().remove_from_owners();
+        } else if let Some(body) = self.bodies.remove(&rid) {
+            body.borrow_mut().remove_from_space();
+        } else if let Some(area) = self.areas.remove(&rid) {
+            area.borrow_mut().remove_from_space();
+        } else if let Some(space) = self.spaces.remove(&rid) {
+            space.borrow_mut().remove_space_from_bodies_areas();
+        } else if self.joints.contains_key(&rid) {
+            self.joints.remove(&rid);
         } else {
             godot_error!("Failed to free RID: The specified RID has no owner.");
         }

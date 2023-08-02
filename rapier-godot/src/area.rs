@@ -6,13 +6,14 @@ use rapier3d::prelude::*;
 use crate::{
     collision_object::RapierCollisionObject,
     conversions::{isometry_to_transform, transform_to_isometry},
-    shape::{RapierShape, RapierShapeInstance},
+    shape::RapierShapeInstance,
     space::RapierSpace,
+    RapierError, RapierResult,
 };
 
-#[derive(Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RapierArea {
+    rid: Rid,
     space: Option<Rc<RefCell<RapierSpace>>>,
     handle: Option<ColliderHandle>,
     shapes: Vec<RapierShapeInstance>,
@@ -28,21 +29,11 @@ impl RapierCollisionObject for RapierArea {
         self.space.clone()
     }
 
-    fn add_shape(
-        &mut self,
-        shape: Rc<RefCell<dyn RapierShape>>,
-        transform: Transform3D,
-        disabled: bool,
-    ) {
-        let isometry = transform_to_isometry(&transform);
-        let shape_instance = RapierShapeInstance::new(shape, isometry, disabled);
-        self.shapes.push(shape_instance);
-
-        self.update_shapes();
-    }
-
-    fn get_shapes(&self) -> &Vec<RapierShapeInstance> {
+    fn shapes(&self) -> &Vec<RapierShapeInstance> {
         &self.shapes
+    }
+    fn shapes_mut(&mut self) -> &mut Vec<RapierShapeInstance> {
+        &mut self.shapes
     }
 
     fn set_instance_id(&mut self, id: u64) {
@@ -53,48 +44,44 @@ impl RapierCollisionObject for RapierArea {
         self.instance_id
     }
 
-    fn remove_shape_rid(&mut self, shape_rid: Rid) {
-        self.shapes.retain(|s| s.shape.borrow().rid() != shape_rid);
-
-        self.update_shapes();
+    fn rid(&self) -> Rid {
+        self.rid
     }
-    fn remove_nth_shape(&mut self, idx: usize) {
-        self.shapes.swap_remove(idx);
+    fn update_shapes(&mut self) {
+        let update_shapes = || -> RapierResult<()> {
+            let mut space = self
+                .space
+                .as_ref()
+                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
+                .borrow_mut();
+            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
+            let collider = space
+                .get_area_mut(handle)
+                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
 
-        self.update_shapes();
-    }
-
-    fn clear_shapes(&mut self) {
-        self.shapes.clear();
-
-        self.update_shapes();
-    }
-
-    fn set_shape(&mut self, idx: usize, s: Rc<RefCell<dyn RapierShape>>) {
-        if let Some(shape) = self.shapes.get_mut(idx) {
-            shape.shape = s.clone();
-            self.update_shapes();
-        }
-    }
-
-    fn set_shape_transform(&mut self, idx: usize, transform: Transform3D) {
-        if let Some(shape) = self.shapes.get_mut(idx) {
-            shape.isometry = transform_to_isometry(&transform);
-            self.update_shapes();
-        }
-    }
-
-    fn set_shape_disabled(&mut self, idx: usize, disabled: bool) {
-        if let Some(shape) = self.shapes.get_mut(idx) {
-            shape.disabled = disabled;
-            self.update_shapes();
+            if let Some(shapes) = self.build_shared_shape() {
+                collider.set_shape(shapes);
+            } else {
+                collider.set_enabled(false);
+            }
+            Ok(())
+        };
+        if let Err(e) = update_shapes() {
+            godot_error!("{}", e);
         }
     }
 }
 
+#[allow(clippy::default_trait_access)]
 impl RapierArea {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(rid: Rid) -> Self {
+        Self {
+            rid,
+            space: Default::default(),
+            handle: Default::default(),
+            shapes: Default::default(),
+            instance_id: Default::default(),
+        }
     }
 
     pub fn set_handle(&mut self, handle: ColliderHandle) {
@@ -107,7 +94,12 @@ impl RapierArea {
                 if let Some(collider) = space.borrow_mut().get_area_mut(handle) {
                     collider.set_position(transform_to_isometry(&transform));
                 }
+                godot_error!("{}", RapierError::AreaHandleInvalid(self.rid));
+            } else {
+                godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
             }
+        } else {
+            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
         }
     }
 
@@ -117,22 +109,13 @@ impl RapierArea {
                 if let Some(collider) = space.borrow().get_area(handle) {
                     return Some(isometry_to_transform(collider.position()));
                 }
+                godot_error!("{}", RapierError::AreaHandleInvalid(self.rid));
+            } else {
+                godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
             }
+        } else {
+            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
         }
         None
-    }
-
-    fn update_shapes(&mut self) {
-        if let Some(space) = &self.space {
-            if let Some(handle) = self.handle {
-                if let Some(collider) = space.borrow_mut().get_area_mut(handle) {
-                    if let Some(shapes) = self.build_shared_shape() {
-                        collider.set_shape(shapes);
-                    } else {
-                        collider.set_enabled(false);
-                    }
-                }
-            }
-        }
     }
 }

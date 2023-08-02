@@ -1,14 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use godot::{
-    engine::{physics_server_3d::BodyMode, physics_server_3d::SpaceParameter},
-    prelude::*,
-};
+use godot::{engine::physics_server_3d::SpaceParameter, prelude::*};
 use rapier3d::prelude::*;
 
 use crate::{
     area::RapierArea, body::RapierBody, collision_object::RapierCollisionObject,
-    conversions::body_mode_to_body_type, conversions::isometry_to_transform,
+    conversions::body_mode_to_body_type,
 };
 
 #[allow(clippy::module_name_repetitions)]
@@ -176,7 +173,7 @@ impl RapierSpace {
         }
     }
 
-    pub fn get_param(&self, param: SpaceParameter) -> f32 {
+    pub const fn get_param(&self, param: SpaceParameter) -> f32 {
         match param {
             SpaceParameter::SPACE_PARAM_CONTACT_RECYCLE_RADIUS => DEFAULT_CONTACT_RECYCLE_RADIUS,
             SpaceParameter::SPACE_PARAM_CONTACT_MAX_SEPARATION => DEFAULT_CONTACT_MAX_SEPARATION,

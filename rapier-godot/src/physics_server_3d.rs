@@ -26,6 +26,7 @@ use crate::collision_object::RapierCollisionObject;
 use crate::conversions::{isometry_to_transform, transform_to_isometry};
 use crate::shape::{
     RapierBoxShape, RapierCapsuleShape, RapierCylinderShape, RapierShape, RapierSphereShape,
+    SeparationRayShape, WorldBoundaryShape,
 };
 use crate::space::RapierSpace;
 use crate::RapierError;
@@ -49,10 +50,16 @@ fn make_rid() -> Rid {
 #[godot_api]
 impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn world_boundary_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = WorldBoundaryShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        rid
     }
     fn separation_ray_shape_create(&mut self) -> Rid {
-        unimplemented!()
+        let rid = make_rid();
+        let shape = SeparationRayShape::new(rid);
+        self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        rid
     }
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
@@ -371,21 +378,28 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn area_set_monitorable(&mut self, area: Rid, monitorable: bool) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut().set_monitorable(monitorable);
+        } else {
+            godot_error!("{}", RapierError::AreaRidMissing(area));
+        }
     }
     fn area_set_ray_pickable(&mut self, area: Rid, enable: bool) {
         unimplemented!()
     }
     fn area_set_monitor_callback(&mut self, area: Rid, callback: Callable) {
-        unimplemented!()
-        // if let Some(area) = self.areas.get_mut(&area) {
-        //     area.borrow_mut().set_monitor_callback(callback);
-        // } else {
-        //     godot_error!("{}", RapierError::AreaRidMissing(area));
-        // }
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut().set_body_monitor_callback(callback);
+        } else {
+            godot_error!("{}", RapierError::AreaRidMissing(area));
+        }
     }
     fn area_set_area_monitor_callback(&mut self, area: Rid, callback: Callable) {
-        unimplemented!()
+        if let Some(area) = self.areas.get_mut(&area) {
+            area.borrow_mut().set_area_monitor_callback(callback);
+        } else {
+            godot_error!("{}", RapierError::AreaRidMissing(area));
+        }
     }
     fn body_create(&mut self) -> Rid {
         let rid = make_rid();

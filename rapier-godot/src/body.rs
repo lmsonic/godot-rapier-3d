@@ -23,6 +23,23 @@ pub struct RapierBody {
     constant_torque: Vector<f32>,
 }
 
+impl Default for RapierBody {
+    fn default() -> Self {
+        Self {
+            rid: Rid::Invalid,
+            space: Default::default(),
+            handle: Default::default(),
+            shapes: Default::default(),
+            body_mode: BodyMode::BODY_MODE_STATIC,
+            instance_id: Default::default(),
+            ccd_enabled: Default::default(),
+            body_state_callback: Callable::invalid(),
+            constant_force: Default::default(),
+            constant_torque: Default::default(),
+        }
+    }
+}
+
 impl RapierCollisionObject for RapierBody {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
         self.space = Some(space);
@@ -79,15 +96,7 @@ impl RapierBody {
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            space: None,
-            handle: None,
-            shapes: vec![],
-            body_mode: BodyMode::BODY_MODE_STATIC,
-            instance_id: None,
-            body_state_callback: Callable::invalid(),
-            ccd_enabled: false,
-            constant_force: vector![0.0, 0.0, 0.0],
-            constant_torque: vector![0.0, 0.0, 0.0],
+            ..Default::default()
         }
     }
 

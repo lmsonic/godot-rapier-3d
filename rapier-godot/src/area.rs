@@ -38,16 +38,23 @@ pub struct RapierArea {
     linear_damp_mode: AreaSpaceOverrideMode,
     angular_damp: f32,
     angular_damp_mode: AreaSpaceOverrideMode,
+
+    body_monitor_callback: Callable,
+    area_monitor_callback: Callable,
+
+    monitorable: bool,
 }
 
 impl Default for RapierArea {
     fn default() -> Self {
         Self {
             rid: Rid::Invalid,
+
             space: Default::default(),
             handle: Default::default(),
             shapes: Default::default(),
             instance_id: Default::default(),
+
             priority: Default::default(),
             gravity: Default::default(),
             gravity_vector: Default::default(),
@@ -58,6 +65,11 @@ impl Default for RapierArea {
             linear_damp_mode: AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_DISABLED,
             angular_damp: Default::default(),
             angular_damp_mode: AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_DISABLED,
+
+            body_monitor_callback: Callable::invalid(),
+            area_monitor_callback: Callable::invalid(),
+
+            monitorable: Default::default(),
         }
     }
 }
@@ -128,34 +140,45 @@ impl RapierArea {
     }
 
     pub fn set_transform(&mut self, transform: Transform3D) {
-        if let Some(space) = &self.space {
-            if let Some(handle) = self.handle {
-                if let Some(collider) = space.borrow_mut().get_area_mut(handle) {
-                    collider.set_position(transform_to_isometry(&transform));
-                }
-                godot_error!("{}", RapierError::AreaHandleInvalid(self.rid));
-            } else {
-                godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
-            }
-        } else {
-            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+        let set_transform = || -> RapierResult<()> {
+            let mut space = self
+                .space
+                .as_ref()
+                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
+                .borrow_mut();
+            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
+            let collider = space
+                .get_area_mut(handle)
+                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
+            collider.set_position(transform_to_isometry(&transform));
+            Ok(())
+        };
+        if let Err(e) = set_transform() {
+            godot_error!("{e}");
         }
     }
 
     pub fn get_transform(&self) -> Option<Transform3D> {
-        if let Some(space) = &self.space {
-            if let Some(handle) = self.handle {
-                if let Some(collider) = space.borrow().get_area(handle) {
-                    return Some(isometry_to_transform(collider.position()));
-                }
-                godot_error!("{}", RapierError::AreaHandleInvalid(self.rid));
-            } else {
-                godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
+        let get_transform = || -> RapierResult<Transform3D> {
+            let mut space = self
+                .space
+                .as_ref()
+                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
+                .borrow_mut();
+            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
+            let collider = space
+                .get_area_mut(handle)
+                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
+
+            Ok(isometry_to_transform(collider.position()))
+        };
+        match get_transform() {
+            Ok(transform) => Some(transform),
+            Err(e) => {
+                godot_error!("{e}");
+                None
             }
-        } else {
-            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
         }
-        None
     }
 
     pub fn get_param(&mut self, param: AreaParameter) -> Variant {
@@ -234,5 +257,16 @@ impl RapierArea {
             }
             _ => {}
         };
+    }
+
+    pub fn set_area_monitor_callback(&mut self, callback: Callable) {
+        self.area_monitor_callback = callback;
+    }
+    pub fn set_body_monitor_callback(&mut self, callback: Callable) {
+        self.body_monitor_callback = callback;
+    }
+
+    pub fn set_monitorable(&mut self, monitorable: bool) {
+        self.monitorable = monitorable;
     }
 }

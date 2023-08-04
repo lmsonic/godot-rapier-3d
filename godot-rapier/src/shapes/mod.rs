@@ -23,9 +23,9 @@ pub use self::concave_shape::RapierConcaveShape;
 pub use self::convex_shape::RapierConvexShape;
 pub use self::cylinder_shape::RapierCylinderShape;
 pub use self::heightfield_shape::RapierHeightmapShape;
-pub use self::separation_ray_shape::SeparationRayShape;
+pub use self::separation_ray_shape::RapierSeparationRayShape;
 pub use self::sphere_shape::RapierSphereShape;
-pub use self::world_boundary_shape::WorldBoundaryShape;
+pub use self::world_boundary_shape::RapierWorldBoundaryShape;
 
 pub trait RapierShape {
     fn rid(&self) -> Rid;

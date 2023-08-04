@@ -7,13 +7,13 @@ use crate::collision_object::RapierCollisionObject;
 
 use super::RapierShape;
 
-pub struct SeparationRayShape {
+pub struct RapierSeparationRayShape {
     shape: Segment,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
 }
 
-impl SeparationRayShape {
+impl RapierSeparationRayShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: Segment::new(point![0.0, 0.0, 0.0], point![0.0, 0.0, 0.5]),
@@ -23,7 +23,7 @@ impl SeparationRayShape {
     }
 }
 
-impl RapierShape for SeparationRayShape {
+impl RapierShape for RapierSeparationRayShape {
     fn rid(&self) -> Rid {
         self.rid
     }

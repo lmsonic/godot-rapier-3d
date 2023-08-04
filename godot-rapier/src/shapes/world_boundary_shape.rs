@@ -6,13 +6,13 @@ use rapier3d::prelude::*;
 use crate::collision_object::RapierCollisionObject;
 
 use super::RapierShape;
-pub struct WorldBoundaryShape {
+pub struct RapierWorldBoundaryShape {
     shape: HalfSpace,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
 }
 
-impl WorldBoundaryShape {
+impl RapierWorldBoundaryShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             shape: HalfSpace::new(UnitVector::new_normalize(vector![0.0, 1.0, 0.0])),
@@ -21,7 +21,7 @@ impl WorldBoundaryShape {
         }
     }
 }
-impl RapierShape for WorldBoundaryShape {
+impl RapierShape for RapierWorldBoundaryShape {
     fn rid(&self) -> Rid {
         self.rid
     }

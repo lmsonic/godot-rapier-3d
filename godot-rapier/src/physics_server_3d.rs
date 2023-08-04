@@ -28,7 +28,8 @@ use crate::error::RapierError;
 use crate::joint::RapierJoint;
 use crate::shapes::{
     RapierBoxShape, RapierCapsuleShape, RapierConcaveShape, RapierConvexShape, RapierCylinderShape,
-    RapierHeightmapShape, RapierShape, RapierSphereShape, SeparationRayShape, WorldBoundaryShape,
+    RapierHeightmapShape, RapierSeparationRayShape, RapierShape, RapierSphereShape,
+    RapierWorldBoundaryShape,
 };
 use crate::space::RapierSpace;
 
@@ -53,13 +54,13 @@ fn make_rid() -> Rid {
 impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn world_boundary_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = WorldBoundaryShape::new(rid);
+        let shape = RapierWorldBoundaryShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }
     fn separation_ray_shape_create(&mut self) -> Rid {
         let rid = make_rid();
-        let shape = SeparationRayShape::new(rid);
+        let shape = RapierSeparationRayShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
         rid
     }

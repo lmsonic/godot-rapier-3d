@@ -90,7 +90,6 @@ pub trait RapierCollisionObject {
 
     fn build_shared_shape(&self) -> Option<SharedShape> {
         if self.shapes().is_empty() {
-            godot_error!("{}", RapierError::BuildingObjectWithNoShapes(self.rid()));
             None
         } else if self.shapes().len() == 1 {
             let shape_instance = &self.shapes()[0];

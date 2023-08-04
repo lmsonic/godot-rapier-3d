@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use godot::engine::native::PhysicsServer3DExtensionMotionResult;
 use godot::engine::physics_server_3d::{BodyMode, SpaceParameter};
-use godot::engine::PhysicsServer3DExtensionVirtual;
+use godot::engine::{Engine, PhysicsServer3DExtensionVirtual};
 use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
 use godot::prelude::*;
 use rapier3d::prelude::*;
@@ -24,6 +24,8 @@ use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
 use crate::conversions::{isometry_to_transform, transform_to_isometry};
+use crate::direct_body_state_3d::RapierPhysicsDirectBodyState3D;
+use crate::direct_space_state_3d::RapierPhysicsDirectSpaceState3D;
 use crate::error::{RapierError, RapierResult};
 use crate::joint::RapierJoint;
 use crate::physics_server_3d_utils::make_rid;
@@ -132,10 +134,16 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         0.0
     }
     fn space_create(&mut self) -> Rid {
-        let rid = make_rid();
-        let space = RapierSpace::new(rid);
-        self.spaces.insert(rid, Rc::new(RefCell::new(space)));
-        rid
+        let space_rid = make_rid();
+        let space = RapierSpace::new(space_rid);
+        let space = Rc::new(RefCell::new(space));
+        let default_area_rid = self.area_create();
+        if let Ok(default_area) = self.get_area(default_area_rid) {
+            space.borrow_mut().set_default_area(default_area);
+            default_area.borrow_mut().set_space(space.clone());
+        }
+        self.spaces.insert(space_rid, space);
+        space_rid
     }
     fn space_set_active(&mut self, space: Rid, active: bool) {
         if self.has_space(space) {
@@ -167,6 +175,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         &mut self,
         space: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
+        if let Ok(space) = self.get_space(space) {
+            let direct_state = RapierPhysicsDirectSpaceState3D::new(space.clone());
+            let direct_state = Gd::new(direct_state).upcast();
+            return Some(direct_state);
+        }
         None
     }
     fn space_set_debug_contacts(&mut self, space: Rid, max_contacts: i32) {}
@@ -629,9 +642,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         &mut self,
         body: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectBodyState3D>> {
+        if let Ok(body) = self.get_body(body) {
+            let direct_state = RapierPhysicsDirectBodyState3D::new(body.clone());
+            let direct_state = Gd::new(direct_state).upcast();
+            return Some(direct_state);
+        }
         None
     }
     fn soft_body_create(&mut self) -> Rid {
+        if Engine::singleton().is_editor_hint() {
+            return self.body_create();
+        }
+        godot_error!("SoftBody3D is not supported by Godot Rapier.");
         Rid::Invalid
     }
     fn soft_body_update_rendering_server(
@@ -911,7 +933,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         } else if self.joints.contains_key(&rid) {
             self.joints.remove(&rid);
         } else {
-            godot_error!("Failed to free RID: The specified RID has no owner.");
+            godot_error!("Failed to free RID: The specified {} has no owner.", rid);
         }
     }
     fn set_active(&mut self, active: bool) {

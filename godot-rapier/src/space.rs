@@ -12,6 +12,7 @@ pub struct RapierSpace {
     rid: Rid,
     godot_bodies: HashMap<RigidBodyHandle, Rc<RefCell<RapierBody>>>,
     godot_areas: HashMap<ColliderHandle, Rc<RefCell<RapierArea>>>,
+    default_area: Option<Rc<RefCell<RapierArea>>>,
 
     rigid_body_set: RigidBodySet,
     collider_set: ColliderSet,
@@ -42,7 +43,7 @@ impl RapierSpace {
             rid,
             godot_bodies: HashMap::default(),
             godot_areas: HashMap::default(),
-
+            default_area: None,
             rigid_body_set: RigidBodySet::default(),
             collider_set: ColliderSet::default(),
             gravity: Vector::default(),
@@ -199,6 +200,15 @@ impl RapierSpace {
         let collider = area_borrow.build_collider(true);
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
+        self.godot_areas.insert(handle, area.clone());
+    }
+
+    pub fn set_default_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
+        let mut area_borrow = area.borrow_mut();
+        let collider = area_borrow.build_collider(true);
+        let handle = self.collider_set.insert(collider);
+        area_borrow.set_handle(handle);
+        self.default_area = Some(area.clone());
     }
 
     pub fn remove_area(&mut self, handle: ColliderHandle) {

@@ -1,10 +1,24 @@
 #![allow(unused, non_snake_case)]
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use godot::engine::PhysicsDirectBodyState3DExtensionVirtual;
 use godot::prelude::*;
 
+use crate::body::RapierBody;
+
 #[derive(GodotClass)]
 #[class(base=PhysicsDirectBodyState3DExtension)]
-struct RapierPhysicsDirectBodyState3D {}
+pub struct RapierPhysicsDirectBodyState3D {
+    body: Rc<RefCell<RapierBody>>,
+}
+
+impl RapierPhysicsDirectBodyState3D {
+    pub fn new(body: Rc<RefCell<RapierBody>>) -> Self {
+        Self { body }
+    }
+}
+
 #[godot_api]
 impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D {
     fn get_total_gravity(&self) -> Vector3 {

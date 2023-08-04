@@ -1,5 +1,7 @@
 #![allow(unused, non_snake_case)]
+use std::cell::RefCell;
 use std::ffi::c_void;
+use std::rc::Rc;
 
 use godot::engine::native::{
     PhysicsServer3DExtensionRayResult, PhysicsServer3DExtensionShapeRestInfo,
@@ -8,9 +10,19 @@ use godot::engine::native::{
 use godot::engine::PhysicsDirectSpaceState3DExtensionVirtual;
 use godot::prelude::*;
 
+use crate::space::RapierSpace;
+
 #[derive(GodotClass)]
 #[class(base=PhysicsDirectSpaceState3DExtension)]
-struct RapierPhysicsDirectSpaceState3D {}
+pub struct RapierPhysicsDirectSpaceState3D {
+    space: Rc<RefCell<RapierSpace>>,
+}
+
+impl RapierPhysicsDirectSpaceState3D {
+    pub fn new(body: Rc<RefCell<RapierSpace>>) -> Self {
+        Self { space: body }
+    }
+}
 #[godot_api]
 impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState3D {
     #[doc = "# Safety"]

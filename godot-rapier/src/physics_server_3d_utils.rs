@@ -28,14 +28,22 @@ impl RapierPhysicsServer3D {
         godot_error!("{}", RapierError::ShapeRidMissing(rid));
         Err(RapierError::ShapeRidMissing(rid))
     }
+    #[track_caller]
     pub(crate) fn get_area(&self, rid: Rid) -> RapierResult<&Rc<RefCell<RapierArea>>> {
         if let Some(area) = self.areas.get(&rid) {
             return Ok(area);
         }
-        godot_error!("{}", RapierError::AreaRidMissing(rid));
+        let caller_location = std::panic::Location::caller();
+        let caller_file = caller_location.file();
+        let caller_line_number = caller_location.line();
+        godot_error!(
+            "{} called from {}:{}",
+            RapierError::AreaRidMissing(rid),
+            caller_file,
+            caller_line_number
+        );
         Err(RapierError::AreaRidMissing(rid))
     }
-
     pub(crate) fn get_body(&self, rid: Rid) -> RapierResult<&Rc<RefCell<RapierBody>>> {
         if let Some(body) = self.bodies.get(&rid) {
             return Ok(body);
@@ -43,15 +51,22 @@ impl RapierPhysicsServer3D {
         godot_error!("{}", RapierError::BodyRidMissing(rid));
         Err(RapierError::BodyRidMissing(rid))
     }
-
+    #[track_caller]
     pub(crate) fn get_space(&self, rid: Rid) -> RapierResult<&Rc<RefCell<RapierSpace>>> {
         if let Some(space) = self.spaces.get(&rid) {
             return Ok(space);
         }
-        godot_error!("{}", RapierError::SpaceRidMissing(rid));
+        let caller_location = std::panic::Location::caller();
+        let caller_file = caller_location.file();
+        let caller_line_number = caller_location.line();
+        godot_error!(
+            "{} called from file {}:{}",
+            RapierError::SpaceRidMissing(rid),
+            caller_file,
+            caller_line_number
+        );
         Err(RapierError::SpaceRidMissing(rid))
     }
-
     pub(crate) fn has_space(&self, rid: Rid) -> bool {
         if self.spaces.contains_key(&rid) {
             return true;

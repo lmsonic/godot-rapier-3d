@@ -6,7 +6,8 @@ use rapier3d::prelude::*;
 
 use crate::{
     collision_object::RapierCollisionObject, conversions::body_mode_to_body_type,
-    error::RapierError, error::RapierResult, shapes::RapierShapeInstance, space::RapierSpace,
+    direct_body_state_3d::RapierPhysicsDirectBodyState3D, error::RapierError, error::RapierResult,
+    shapes::RapierShapeInstance, space::RapierSpace,
 };
 
 pub struct RapierBody {

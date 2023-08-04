@@ -28,7 +28,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         pick_ray: bool,
         result: *mut PhysicsServer3DExtensionRayResult,
     ) -> bool {
-        unimplemented!()
+        false
     }
     #[doc = "# Safety"]
     #[doc = ""]
@@ -42,7 +42,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         results: *mut PhysicsServer3DExtensionShapeResult,
         max_results: i32,
     ) -> i32 {
-        unimplemented!()
+        0
     }
     #[doc = "# Safety"]
     #[doc = ""]
@@ -59,7 +59,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         result_count: *mut PhysicsServer3DExtensionShapeResult,
         max_results: i32,
     ) -> i32 {
-        unimplemented!()
+        0
     }
     #[doc = "# Safety"]
     #[doc = ""]
@@ -77,7 +77,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         closest_unsafe: *mut f64,
         info: *mut PhysicsServer3DExtensionShapeRestInfo,
     ) -> bool {
-        unimplemented!()
+        false
     }
     #[doc = "# Safety"]
     #[doc = ""]
@@ -95,7 +95,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         max_results: i32,
         result_count: *mut i32,
     ) -> bool {
-        unimplemented!()
+        false
     }
     #[doc = "# Safety"]
     #[doc = ""]
@@ -111,9 +111,9 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         collide_with_areas: bool,
         rest_info: *mut PhysicsServer3DExtensionShapeRestInfo,
     ) -> bool {
-        unimplemented!()
+        false
     }
     fn get_closest_point_to_object_volume(&self, object: Rid, point: Vector3) -> Vector3 {
-        unimplemented!()
+        Vector3::ZERO
     }
 }

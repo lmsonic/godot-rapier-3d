@@ -195,10 +195,10 @@ impl RapierSpace {
     }
 
     pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
-        let area_borrow = area.borrow();
+        let mut area_borrow = area.borrow_mut();
         let collider = area_borrow.build_collider(true);
         let handle = self.collider_set.insert(collider);
-        area.borrow_mut().set_handle(handle);
+        area_borrow.set_handle(handle);
     }
 
     pub fn remove_area(&mut self, handle: ColliderHandle) {
@@ -222,15 +222,15 @@ impl RapierSpace {
     }
 
     pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
-        let body_borrow = body.borrow();
+        let mut body_borrow = body.borrow_mut();
         let collider = body_borrow.build_collider(false);
-        let body_type = body_mode_to_body_type(body.borrow().get_body_mode());
+        let body_type = body_mode_to_body_type(body_borrow.get_body_mode());
         let handle = self
             .rigid_body_set
             .insert(RigidBodyBuilder::new(body_type).ccd_enabled(body_borrow.is_ccd_enabled()));
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
-        body.borrow_mut().set_handle(handle);
+        body_borrow.set_handle(handle);
         self.godot_bodies.insert(handle, body.clone());
     }
     pub fn remove_space_from_bodies_areas(&self) {

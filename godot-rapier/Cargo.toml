@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = { git = "https://github.com/godot-rust/gdext", rev = "d3fe5c7" }
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 rapier3d = { version = "*", features = ["simd-stable"] }
 thiserror = "1.0.44"
+
+[profile.dev.package.rapier3d]
+opt-level = 3

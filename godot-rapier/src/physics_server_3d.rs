@@ -111,14 +111,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             shape.borrow_mut().set_data(data);
         }
     }
-    fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {
-        unimplemented!()
-    }
-    fn shape_set_margin(&mut self, shape: Rid, margin: f32) {
-        unimplemented!()
-    }
+    fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {}
+    fn shape_set_margin(&mut self, shape: Rid, margin: f32) {}
     fn shape_get_margin(&self, shape: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn shape_get_type(&self, shape: Rid) -> godot::engine::physics_server_3d::ShapeType {
         if let Ok(shape) = self.get_shape(shape) {
@@ -133,7 +129,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         Variant::nil()
     }
     fn shape_get_custom_solver_bias(&self, shape: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn space_create(&mut self) -> Rid {
         let rid = make_rid();
@@ -171,16 +167,14 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         &mut self,
         space: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
-        unimplemented!()
+        None
     }
-    fn space_set_debug_contacts(&mut self, space: Rid, max_contacts: i32) {
-        unimplemented!()
-    }
+    fn space_set_debug_contacts(&mut self, space: Rid, max_contacts: i32) {}
     fn space_get_contacts(&self, space: Rid) -> PackedVector3Array {
-        unimplemented!()
+        PackedVector3Array::new()
     }
     fn space_get_contact_count(&self, space: Rid) -> i32 {
-        unimplemented!()
+        0
     }
     fn area_create(&mut self) -> Rid {
         let rid = make_rid();
@@ -313,26 +307,20 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         Transform3D::IDENTITY
     }
-    fn area_set_collision_layer(&mut self, area: Rid, layer: u32) {
-        unimplemented!()
-    }
+    fn area_set_collision_layer(&mut self, area: Rid, layer: u32) {}
     fn area_get_collision_layer(&self, area: Rid) -> u32 {
-        unimplemented!()
+        0
     }
-    fn area_set_collision_mask(&mut self, area: Rid, mask: u32) {
-        unimplemented!()
-    }
+    fn area_set_collision_mask(&mut self, area: Rid, mask: u32) {}
     fn area_get_collision_mask(&self, area: Rid) -> u32 {
-        unimplemented!()
+        0
     }
     fn area_set_monitorable(&mut self, area: Rid, monitorable: bool) {
         if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_monitorable(monitorable);
         }
     }
-    fn area_set_ray_pickable(&mut self, area: Rid, enable: bool) {
-        unimplemented!()
-    }
+    fn area_set_ray_pickable(&mut self, area: Rid, enable: bool) {}
     fn area_set_monitor_callback(&mut self, area: Rid, callback: Callable) {
         if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_body_monitor_callback(callback);
@@ -464,29 +452,21 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         false
     }
-    fn body_set_collision_layer(&mut self, body: Rid, layer: u32) {
-        unimplemented!()
-    }
+    fn body_set_collision_layer(&mut self, body: Rid, layer: u32) {}
     fn body_get_collision_layer(&self, body: Rid) -> u32 {
-        unimplemented!()
+        0
     }
-    fn body_set_collision_mask(&mut self, body: Rid, mask: u32) {
-        unimplemented!()
-    }
+    fn body_set_collision_mask(&mut self, body: Rid, mask: u32) {}
     fn body_get_collision_mask(&self, body: Rid) -> u32 {
-        unimplemented!()
+        0
     }
-    fn body_set_collision_priority(&mut self, body: Rid, priority: f32) {
-        unimplemented!()
-    }
+    fn body_set_collision_priority(&mut self, body: Rid, priority: f32) {}
     fn body_get_collision_priority(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn body_set_user_flags(&mut self, body: Rid, flags: u32) {
-        unimplemented!()
-    }
+    fn body_set_user_flags(&mut self, body: Rid, flags: u32) {}
     fn body_get_user_flags(&self, body: Rid) -> u32 {
-        unimplemented!()
+        0
     }
     fn body_set_param(
         &mut self,
@@ -494,32 +474,28 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::BodyParameter,
         value: Variant,
     ) {
-        unimplemented!()
     }
     fn body_get_param(
         &self,
         body: Rid,
         param: godot::engine::physics_server_3d::BodyParameter,
     ) -> Variant {
-        unimplemented!()
+        Variant::nil()
     }
-    fn body_reset_mass_properties(&mut self, body: Rid) {
-        unimplemented!()
-    }
+    fn body_reset_mass_properties(&mut self, body: Rid) {}
     fn body_set_state(
         &mut self,
         body: Rid,
         state: godot::engine::physics_server_3d::BodyState,
         value: Variant,
     ) {
-        unimplemented!()
     }
     fn body_get_state(
         &self,
         body: Rid,
         state: godot::engine::physics_server_3d::BodyState,
     ) -> Variant {
-        unimplemented!()
+        Variant::nil()
     }
     fn body_apply_central_impulse(&mut self, body: Rid, impulse: Vector3) {
         if let Ok(body) = self.get_body(body) {
@@ -588,50 +564,37 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         Vector3::ZERO
     }
-    fn body_set_axis_velocity(&mut self, body: Rid, axis_velocity: Vector3) {
-        unimplemented!()
-    }
+    fn body_set_axis_velocity(&mut self, body: Rid, axis_velocity: Vector3) {}
     fn body_set_axis_lock(
         &mut self,
         body: Rid,
         axis: godot::engine::physics_server_3d::BodyAxis,
         lock: bool,
     ) {
-        unimplemented!()
     }
     fn body_is_axis_locked(
         &self,
         body: Rid,
         axis: godot::engine::physics_server_3d::BodyAxis,
     ) -> bool {
-        unimplemented!()
+        false
     }
-    fn body_add_collision_exception(&mut self, body: Rid, excepted_body: Rid) {
-        unimplemented!()
-    }
-    fn body_remove_collision_exception(&mut self, body: Rid, excepted_body: Rid) {
-        unimplemented!()
-    }
+    fn body_add_collision_exception(&mut self, body: Rid, excepted_body: Rid) {}
+    fn body_remove_collision_exception(&mut self, body: Rid, excepted_body: Rid) {}
     fn body_get_collision_exceptions(&self, body: Rid) -> Array<Rid> {
-        unimplemented!()
+        Array::new()
     }
-    fn body_set_max_contacts_reported(&mut self, body: Rid, amount: i32) {
-        unimplemented!()
-    }
+    fn body_set_max_contacts_reported(&mut self, body: Rid, amount: i32) {}
     fn body_get_max_contacts_reported(&self, body: Rid) -> i32 {
-        unimplemented!()
+        0
     }
-    fn body_set_contacts_reported_depth_threshold(&mut self, body: Rid, threshold: f32) {
-        unimplemented!()
-    }
+    fn body_set_contacts_reported_depth_threshold(&mut self, body: Rid, threshold: f32) {}
     fn body_get_contacts_reported_depth_threshold(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn body_set_omit_force_integration(&mut self, body: Rid, enable: bool) {
-        unimplemented!()
-    }
+    fn body_set_omit_force_integration(&mut self, body: Rid, enable: bool) {}
     fn body_is_omitting_force_integration(&self, body: Rid) -> bool {
-        unimplemented!()
+        false
     }
     fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
         if let Ok(body) = self.get_body(body) {
@@ -644,11 +607,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         callable: Callable,
         userdata: Variant,
     ) {
-        unimplemented!()
     }
-    fn body_set_ray_pickable(&mut self, body: Rid, enable: bool) {
-        unimplemented!()
-    }
+    fn body_set_ray_pickable(&mut self, body: Rid, enable: bool) {}
     #[doc = "# Safety"]
     #[doc = ""]
     #[doc = "Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics."]
@@ -663,53 +623,40 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         recovery_as_collision: bool,
         result: *mut PhysicsServer3DExtensionMotionResult,
     ) -> bool {
-        unimplemented!()
+        false
     }
     fn body_get_direct_state(
         &mut self,
         body: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectBodyState3D>> {
-        unimplemented!()
+        None
     }
     fn soft_body_create(&mut self) -> Rid {
-        unimplemented!()
+        Rid::Invalid
     }
     fn soft_body_update_rendering_server(
         &mut self,
         body: Rid,
         rendering_server_handler: Gd<godot::engine::PhysicsServer3DRenderingServerHandler>,
     ) {
-        unimplemented!()
     }
-    fn soft_body_set_space(&mut self, body: Rid, space: Rid) {
-        unimplemented!()
-    }
+    fn soft_body_set_space(&mut self, body: Rid, space: Rid) {}
     fn soft_body_get_space(&self, body: Rid) -> Rid {
-        unimplemented!()
+        Rid::Invalid
     }
-    fn soft_body_set_ray_pickable(&mut self, body: Rid, enable: bool) {
-        unimplemented!()
-    }
-    fn soft_body_set_collision_layer(&mut self, body: Rid, layer: u32) {
-        unimplemented!()
-    }
+    fn soft_body_set_ray_pickable(&mut self, body: Rid, enable: bool) {}
+    fn soft_body_set_collision_layer(&mut self, body: Rid, layer: u32) {}
     fn soft_body_get_collision_layer(&self, body: Rid) -> u32 {
-        unimplemented!()
+        0
     }
-    fn soft_body_set_collision_mask(&mut self, body: Rid, mask: u32) {
-        unimplemented!()
-    }
+    fn soft_body_set_collision_mask(&mut self, body: Rid, mask: u32) {}
     fn soft_body_get_collision_mask(&self, body: Rid) -> u32 {
-        unimplemented!()
+        0
     }
-    fn soft_body_add_collision_exception(&mut self, body: Rid, body_b: Rid) {
-        unimplemented!()
-    }
-    fn soft_body_remove_collision_exception(&mut self, body: Rid, body_b: Rid) {
-        unimplemented!()
-    }
+    fn soft_body_add_collision_exception(&mut self, body: Rid, body_b: Rid) {}
+    fn soft_body_remove_collision_exception(&mut self, body: Rid, body_b: Rid) {}
     fn soft_body_get_collision_exceptions(&self, body: Rid) -> Array<Rid> {
-        unimplemented!()
+        Array::new()
     }
     fn soft_body_set_state(
         &mut self,
@@ -717,74 +664,51 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         state: godot::engine::physics_server_3d::BodyState,
         variant: Variant,
     ) {
-        unimplemented!()
     }
     fn soft_body_get_state(
         &self,
         body: Rid,
         state: godot::engine::physics_server_3d::BodyState,
     ) -> Variant {
-        unimplemented!()
+        Variant::nil()
     }
-    fn soft_body_set_transform(&mut self, body: Rid, transform: Transform3D) {
-        unimplemented!()
-    }
-    fn soft_body_set_simulation_precision(&mut self, body: Rid, simulation_precision: i32) {
-        unimplemented!()
-    }
+    fn soft_body_set_transform(&mut self, body: Rid, transform: Transform3D) {}
+    fn soft_body_set_simulation_precision(&mut self, body: Rid, simulation_precision: i32) {}
     fn soft_body_get_simulation_precision(&self, body: Rid) -> i32 {
-        unimplemented!()
+        0
     }
-    fn soft_body_set_total_mass(&mut self, body: Rid, total_mass: f32) {
-        unimplemented!()
-    }
+    fn soft_body_set_total_mass(&mut self, body: Rid, total_mass: f32) {}
     fn soft_body_get_total_mass(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn soft_body_set_linear_stiffness(&mut self, body: Rid, linear_stiffness: f32) {
-        unimplemented!()
-    }
+    fn soft_body_set_linear_stiffness(&mut self, body: Rid, linear_stiffness: f32) {}
     fn soft_body_get_linear_stiffness(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn soft_body_set_pressure_coefficient(&mut self, body: Rid, pressure_coefficient: f32) {
-        unimplemented!()
-    }
+    fn soft_body_set_pressure_coefficient(&mut self, body: Rid, pressure_coefficient: f32) {}
     fn soft_body_get_pressure_coefficient(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn soft_body_set_damping_coefficient(&mut self, body: Rid, damping_coefficient: f32) {
-        unimplemented!()
-    }
+    fn soft_body_set_damping_coefficient(&mut self, body: Rid, damping_coefficient: f32) {}
     fn soft_body_get_damping_coefficient(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn soft_body_set_drag_coefficient(&mut self, body: Rid, drag_coefficient: f32) {
-        unimplemented!()
-    }
+    fn soft_body_set_drag_coefficient(&mut self, body: Rid, drag_coefficient: f32) {}
     fn soft_body_get_drag_coefficient(&self, body: Rid) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn soft_body_set_mesh(&mut self, body: Rid, mesh: Rid) {
-        unimplemented!()
-    }
+    fn soft_body_set_mesh(&mut self, body: Rid, mesh: Rid) {}
     fn soft_body_get_bounds(&self, body: Rid) -> godot::builtin::Aabb {
-        unimplemented!()
+        godot::builtin::Aabb::new(Vector3::ZERO, Vector3::ZERO)
     }
-    fn soft_body_move_point(&mut self, body: Rid, point_index: i32, global_position: Vector3) {
-        unimplemented!()
-    }
+    fn soft_body_move_point(&mut self, body: Rid, point_index: i32, global_position: Vector3) {}
     fn soft_body_get_point_global_position(&self, body: Rid, point_index: i32) -> Vector3 {
-        unimplemented!()
+        Vector3::ZERO
     }
-    fn soft_body_remove_all_pinned_points(&mut self, body: Rid) {
-        unimplemented!()
-    }
-    fn soft_body_pin_point(&mut self, body: Rid, point_index: i32, pin: bool) {
-        unimplemented!()
-    }
+    fn soft_body_remove_all_pinned_points(&mut self, body: Rid) {}
+    fn soft_body_pin_point(&mut self, body: Rid, point_index: i32, pin: bool) {}
     fn soft_body_is_point_pinned(&self, body: Rid, point_index: i32) -> bool {
-        unimplemented!()
+        false
     }
     fn joint_create(&mut self) -> Rid {
         let rid = make_rid();
@@ -806,7 +730,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body_B: Rid,
         local_B: Vector3,
     ) {
-        unimplemented!()
     }
     fn pin_joint_set_param(
         &mut self,
@@ -814,26 +737,21 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::PinJointParam,
         value: f32,
     ) {
-        unimplemented!()
     }
     fn pin_joint_get_param(
         &self,
         joint: Rid,
         param: godot::engine::physics_server_3d::PinJointParam,
     ) -> f32 {
-        unimplemented!()
+        0.0
     }
-    fn pin_joint_set_local_a(&mut self, joint: Rid, local_A: Vector3) {
-        unimplemented!()
-    }
+    fn pin_joint_set_local_a(&mut self, joint: Rid, local_A: Vector3) {}
     fn pin_joint_get_local_a(&self, joint: Rid) -> Vector3 {
-        unimplemented!()
+        Vector3::ZERO
     }
-    fn pin_joint_set_local_b(&mut self, joint: Rid, local_B: Vector3) {
-        unimplemented!()
-    }
+    fn pin_joint_set_local_b(&mut self, joint: Rid, local_B: Vector3) {}
     fn pin_joint_get_local_b(&self, joint: Rid) -> Vector3 {
-        unimplemented!()
+        Vector3::ZERO
     }
     fn joint_make_hinge(
         &mut self,
@@ -843,7 +761,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body_B: Rid,
         hinge_B: Transform3D,
     ) {
-        unimplemented!()
     }
     fn joint_make_hinge_simple(
         &mut self,
@@ -855,7 +772,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         pivot_B: Vector3,
         axis_B: Vector3,
     ) {
-        unimplemented!()
     }
     fn hinge_joint_set_param(
         &mut self,
@@ -863,14 +779,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::HingeJointParam,
         value: f32,
     ) {
-        unimplemented!()
     }
     fn hinge_joint_get_param(
         &self,
         joint: Rid,
         param: godot::engine::physics_server_3d::HingeJointParam,
     ) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn hinge_joint_set_flag(
         &mut self,
@@ -878,14 +793,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         flag: godot::engine::physics_server_3d::HingeJointFlag,
         enabled: bool,
     ) {
-        unimplemented!()
     }
     fn hinge_joint_get_flag(
         &self,
         joint: Rid,
         flag: godot::engine::physics_server_3d::HingeJointFlag,
     ) -> bool {
-        unimplemented!()
+        false
     }
     fn joint_make_slider(
         &mut self,
@@ -895,7 +809,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body_B: Rid,
         local_ref_B: Transform3D,
     ) {
-        unimplemented!()
     }
     fn slider_joint_set_param(
         &mut self,
@@ -903,14 +816,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::SliderJointParam,
         value: f32,
     ) {
-        unimplemented!()
     }
     fn slider_joint_get_param(
         &self,
         joint: Rid,
         param: godot::engine::physics_server_3d::SliderJointParam,
     ) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn joint_make_cone_twist(
         &mut self,
@@ -920,7 +832,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body_B: Rid,
         local_ref_B: Transform3D,
     ) {
-        unimplemented!()
     }
     fn cone_twist_joint_set_param(
         &mut self,
@@ -928,14 +839,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::ConeTwistJointParam,
         value: f32,
     ) {
-        unimplemented!()
     }
     fn cone_twist_joint_get_param(
         &self,
         joint: Rid,
         param: godot::engine::physics_server_3d::ConeTwistJointParam,
     ) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn joint_make_generic_6dof(
         &mut self,
@@ -945,7 +855,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body_B: Rid,
         local_ref_B: Transform3D,
     ) {
-        unimplemented!()
     }
     fn generic_6dof_joint_set_param(
         &mut self,
@@ -954,7 +863,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::G6DOFJointAxisParam,
         value: f32,
     ) {
-        unimplemented!()
     }
     fn generic_6dof_joint_get_param(
         &self,
@@ -962,7 +870,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         axis: Vector3Axis,
         param: godot::engine::physics_server_3d::G6DOFJointAxisParam,
     ) -> f32 {
-        unimplemented!()
+        0.0
     }
     fn generic_6dof_joint_set_flag(
         &mut self,
@@ -971,7 +879,6 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         flag: godot::engine::physics_server_3d::G6DOFJointAxisFlag,
         enable: bool,
     ) {
-        unimplemented!()
     }
     fn generic_6dof_joint_get_flag(
         &self,
@@ -979,22 +886,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         axis: Vector3Axis,
         flag: godot::engine::physics_server_3d::G6DOFJointAxisFlag,
     ) -> bool {
-        unimplemented!()
+        false
     }
     fn joint_get_type(&self, joint: Rid) -> godot::engine::physics_server_3d::JointType {
-        unimplemented!()
+        godot::engine::physics_server_3d::JointType::JOINT_TYPE_6DOF
     }
-    fn joint_set_solver_priority(&mut self, joint: Rid, priority: i32) {
-        unimplemented!()
-    }
+    fn joint_set_solver_priority(&mut self, joint: Rid, priority: i32) {}
     fn joint_get_solver_priority(&self, joint: Rid) -> i32 {
-        unimplemented!()
+        0
     }
-    fn joint_disable_collisions_between_bodies(&mut self, joint: Rid, disable: bool) {
-        unimplemented!()
-    }
+    fn joint_disable_collisions_between_bodies(&mut self, joint: Rid, disable: bool) {}
     fn joint_is_disabled_collisions_between_bodies(&self, joint: Rid) -> bool {
-        unimplemented!()
+        false
     }
     fn free_rid(&mut self, rid: Rid) {
         if let Some(shape) = self.shapes.remove(&rid) {
@@ -1039,16 +942,14 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
     }
     fn end_sync(&mut self) {}
-    fn finish(&mut self) {
-        unimplemented!()
-    }
+    fn finish(&mut self) {}
     fn is_flushing_queries(&self) -> bool {
-        unimplemented!()
+        false
     }
     fn get_process_info(
         &mut self,
         process_info: godot::engine::physics_server_3d::ProcessInfo,
     ) -> i32 {
-        unimplemented!()
+        0
     }
 }

@@ -289,7 +289,7 @@ impl RapierArea {
         self.monitorable = monitorable;
     }
 
-    pub fn handle(&self) -> Option<ColliderHandle> {
+    pub const fn handle(&self) -> Option<ColliderHandle> {
         self.handle
     }
 }

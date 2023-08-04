@@ -1,6 +1,7 @@
 #![allow(clippy::module_name_repetitions)]
 use godot::{
-    engine::PhysicsServer3DManager, prelude::*, private::class_macros::auto_register_classes,
+    engine::PhysicsServer3DManager, init::EditorRunBehavior, prelude::*,
+    private::class_macros::auto_register_classes,
 };
 use physics_server_3d::RapierPhysicsServer3D;
 
@@ -48,5 +49,8 @@ unsafe impl ExtensionLibrary for RapierPhysics {
     fn load_library(handle: &mut InitHandle) -> bool {
         handle.register_layer(InitLevel::Servers, ServerLayer);
         true
+    }
+    fn editor_run_behavior() -> EditorRunBehavior {
+        EditorRunBehavior::Full
     }
 }

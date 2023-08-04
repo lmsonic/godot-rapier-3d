@@ -355,7 +355,7 @@ impl RapierBody {
         self.constant_torque
     }
 
-    pub fn handle(&self) -> Option<RigidBodyHandle> {
+    pub const fn handle(&self) -> Option<RigidBodyHandle> {
         self.handle
     }
 }

@@ -21,12 +21,10 @@ impl RapierShape for RapierHeightmapShape {
     }
 
     fn get_data(&self) -> Variant {
-        todo!()
+        Variant::nil()
     }
 
-    fn set_data(&mut self, data: Variant) {
-        todo!()
-    }
+    fn set_data(&mut self, data: Variant) {}
 
     fn get_shape(&self) -> SharedShape {
         SharedShape::new(self.shape.clone())

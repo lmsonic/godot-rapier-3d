@@ -54,6 +54,14 @@ pub trait RapierCollisionObject {
         }
     }
 
+    fn get_shape_instance(&self, idx: usize) -> Option<&RapierShapeInstance> {
+        if let Some(shape) = self.shapes().get(idx) {
+            return Some(shape);
+        }
+        godot_error!("{}", RapierError::ShapeNotInObject(idx, self.rid()));
+        None
+    }
+
     fn set_shape_transform(&mut self, idx: usize, transform: Transform3D) {
         if let Some(shape) = self.shapes_mut().get_mut(idx) {
             shape.isometry = transform_to_isometry(&transform);

@@ -43,8 +43,10 @@ impl RapierCollisionObject for RapierBody {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
         self.space = Some(space);
     }
-
     fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
+        if self.space.is_none() {
+            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+        }
         self.space.clone()
     }
 
@@ -60,6 +62,9 @@ impl RapierCollisionObject for RapierBody {
     }
 
     fn instance_id(&self) -> Option<u64> {
+        if self.instance_id.is_none() {
+            godot_error!("{}", RapierError::BodyInstanceIDNotSet(self.rid));
+        }
         self.instance_id
     }
 

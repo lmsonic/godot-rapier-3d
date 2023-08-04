@@ -80,6 +80,9 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
+        if self.space.is_none() {
+            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+        }
         self.space.clone()
     }
 
@@ -91,6 +94,9 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn set_instance_id(&mut self, id: u64) {
+        if self.instance_id.is_none() {
+            godot_error!("{}", RapierError::AreaInstanceIDNotSet(self.rid));
+        }
         self.instance_id = Some(id);
     }
 
@@ -194,7 +200,7 @@ impl RapierArea {
         }
     }
 
-    pub fn get_param(&mut self, param: AreaParameter) -> Variant {
+    pub fn get_param(&self, param: AreaParameter) -> Variant {
         match param {
             AreaParameter::AREA_PARAM_GRAVITY_OVERRIDE_MODE => Variant::from(self.gravity_mode),
             AreaParameter::AREA_PARAM_GRAVITY => Variant::from(self.gravity),

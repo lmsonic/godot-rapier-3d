@@ -24,8 +24,9 @@ use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
 use crate::conversions::{isometry_to_transform, transform_to_isometry};
-use crate::error::RapierError;
+use crate::error::{RapierError, RapierResult};
 use crate::joint::RapierJoint;
+use crate::physics_server_3d_utils::make_rid;
 use crate::shapes::{
     RapierBoxShape, RapierCapsuleShape, RapierConcaveShape, RapierConvexShape, RapierCylinderShape,
     RapierHeightmapShape, RapierSeparationRayShape, RapierShape, RapierSphereShape,
@@ -36,18 +37,13 @@ use crate::space::RapierSpace;
 #[derive(GodotClass, Default)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
-    shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
-    spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
+    pub(crate) shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
+    pub(crate) spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
     active_spaces: HashSet<Rid>,
-    areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
-    bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
-    joints: HashMap<Rid, Rc<RefCell<RapierJoint>>>,
+    pub(crate) areas: HashMap<Rid, Rc<RefCell<RapierArea>>>,
+    pub(crate) bodies: HashMap<Rid, Rc<RefCell<RapierBody>>>,
+    pub(crate) joints: HashMap<Rid, Rc<RefCell<RapierJoint>>>,
     active: bool,
-}
-
-#[inline]
-fn make_rid() -> Rid {
-    rid_from_int64(rid_allocate_id())
 }
 
 #[godot_api]
@@ -111,10 +107,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
 
     fn shape_set_data(&mut self, shape: Rid, data: Variant) {
-        if let Some(shape) = self.shapes.get_mut(&shape) {
+        if let Ok(shape) = self.get_shape(shape) {
             shape.borrow_mut().set_data(data);
-        } else {
-            godot_error!("{}", RapierError::ShapeRidMissing(shape));
         }
     }
     fn shape_set_custom_solver_bias(&mut self, shape: Rid, bias: f32) {
@@ -123,21 +117,19 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn shape_set_margin(&mut self, shape: Rid, margin: f32) {
         unimplemented!()
     }
-    fn shape_get_margin(&self, shape_rid: Rid) -> f32 {
+    fn shape_get_margin(&self, shape: Rid) -> f32 {
         unimplemented!()
     }
     fn shape_get_type(&self, shape: Rid) -> godot::engine::physics_server_3d::ShapeType {
-        if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(shape) = self.get_shape(shape) {
             return shape.borrow().get_type();
         }
-        godot_error!("{}", RapierError::ShapeRidMissing(shape));
         godot::engine::physics_server_3d::ShapeType::SHAPE_CUSTOM
     }
     fn shape_get_data(&self, shape: Rid) -> Variant {
-        if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(shape) = self.get_shape(shape) {
             return shape.borrow().get_data();
         }
-        godot_error!("{}", RapierError::ShapeRidMissing(shape));
         Variant::nil()
     }
     fn shape_get_custom_solver_bias(&self, shape: Rid) -> f32 {
@@ -150,35 +142,29 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
     fn space_set_active(&mut self, space: Rid, active: bool) {
-        if self.spaces.contains_key(&space) {
+        if self.has_space(space) {
             if active {
                 self.active_spaces.insert(space);
             } else {
                 self.active_spaces.remove(&space);
             }
-        } else {
-            godot_error!("{}", RapierError::SpaceRidMissing(space));
         }
     }
     fn space_is_active(&self, space: Rid) -> bool {
-        if self.spaces.contains_key(&space) {
+        if self.has_space(space) {
             return self.active_spaces.contains(&space);
         }
-        godot_error!("{}", RapierError::SpaceRidMissing(space));
         false
     }
     fn space_set_param(&mut self, space: Rid, param: SpaceParameter, value: f32) {
-        if let Some(space) = self.spaces.get_mut(&space) {
+        if let Ok(space) = self.get_space(space) {
             space.borrow_mut().set_param(param, value);
-        } else {
-            godot_error!("{}", RapierError::SpaceRidMissing(space));
         }
     }
     fn space_get_param(&self, space: Rid, param: SpaceParameter) -> f32 {
-        if let Some(space) = self.spaces.get(&space) {
+        if let Ok(space) = self.get_space(space) {
             space.borrow().get_param(param);
         }
-        godot_error!("{}", RapierError::SpaceRidMissing(space));
         0.0
     }
     fn space_get_direct_state(
@@ -203,136 +189,94 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
     fn area_set_space(&mut self, area: Rid, space: Rid) {
-        if let Some(area) = self.areas.get_mut(&area) {
-            if let Some(space) = self.spaces.get(&space) {
+        if let Ok(area) = self.get_area(area) {
+            if let Ok(space) = self.get_space(space) {
                 space.borrow_mut().add_area(area);
                 area.borrow_mut().set_space(space.clone());
-            } else {
-                godot_error!("{}", RapierError::SpaceRidMissing(space));
             }
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
-    fn area_get_space(&self, area_id: Rid) -> Rid {
-        if let Some(area) = self.areas.get(&area_id) {
+    fn area_get_space(&self, area: Rid) -> Rid {
+        if let Ok(area) = self.get_area(area) {
             if let Some(space) = area.borrow().space() {
                 let rid = space.borrow().rid();
-                if self.spaces.contains_key(&rid) {
+                if self.has_space(rid) {
                     return rid;
                 }
-                godot_error!("{}", RapierError::SpaceRidMissing(rid));
-            } else {
-                godot_error!("{}", RapierError::ObjectSpaceNotSet(area_id));
             }
         }
-        godot_error!("{}", RapierError::AreaRidMissing(area_id));
         Rid::Invalid
     }
     fn area_add_shape(&mut self, area: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
-        if let Some(area) = self.areas.get_mut(&area) {
-            if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(area) = self.get_area(area) {
+            if let Ok(shape) = self.get_shape(shape) {
                 area.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
-            } else {
-                godot_error!("{}", RapierError::ShapeRidMissing(shape));
             }
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_shape(&mut self, area: Rid, shape_idx: i32, shape: Rid) {
-        if let Some(area) = self.areas.get_mut(&area) {
-            if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(area) = self.get_area(area) {
+            if let Ok(shape) = self.get_shape(shape) {
                 area.borrow_mut()
                     .set_shape(shape_idx as usize, shape.clone());
-            } else {
-                godot_error!("{}", RapierError::ShapeRidMissing(shape));
             }
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_shape_transform(&mut self, area: Rid, shape_idx: i32, transform: Transform3D) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut()
                 .set_shape_transform(shape_idx as usize, transform);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_shape_disabled(&mut self, area: Rid, shape_idx: i32, disabled: bool) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut()
                 .set_shape_disabled(shape_idx as usize, disabled);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_get_shape_count(&self, area: Rid) -> i32 {
-        if let Some(area) = self.areas.get(&area) {
+        if let Ok(area) = self.get_area(area) {
             return area.borrow().shapes().len() as i32;
         }
-        godot_error!("{}", RapierError::AreaRidMissing(area));
         0
     }
-    fn area_get_shape(&self, area_id: Rid, shape_idx: i32) -> Rid {
-        if let Some(area) = self.areas.get(&area_id) {
-            if let Some(shape_inst) = area.borrow().shapes().get(shape_idx as usize) {
+    fn area_get_shape(&self, area: Rid, shape_idx: i32) -> Rid {
+        if let Ok(area) = self.get_area(area) {
+            if let Some(shape_inst) = area.borrow().get_shape_instance(shape_idx as usize) {
                 return shape_inst.shape.borrow().rid();
             }
-            godot_error!(
-                "{}",
-                RapierError::ShapeNotInObject(shape_idx as usize, area_id)
-            );
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area_id));
         }
         Rid::Invalid
     }
-    fn area_get_shape_transform(&self, area_id: Rid, shape_idx: i32) -> Transform3D {
-        if let Some(area) = self.areas.get(&area_id) {
-            if let Some(shape_inst) = area.borrow().shapes().get(shape_idx as usize) {
+    fn area_get_shape_transform(&self, area: Rid, shape_idx: i32) -> Transform3D {
+        if let Ok(area) = self.get_area(area) {
+            if let Some(shape_inst) = area.borrow().get_shape_instance(shape_idx as usize) {
                 return isometry_to_transform(&shape_inst.isometry);
             }
-            godot_error!(
-                "{}",
-                RapierError::ShapeNotInObject(shape_idx as usize, area_id)
-            );
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area_id));
         }
-        Transform3D::default()
+        Transform3D::IDENTITY
     }
     fn area_remove_shape(&mut self, area: Rid, shape_idx: i32) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().remove_nth_shape(shape_idx as usize);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_clear_shapes(&mut self, area: Rid) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().clear_shapes();
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_attach_object_instance_id(&mut self, area: Rid, id: u64) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_instance_id(id);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
-    fn area_get_object_instance_id(&self, area_id: Rid) -> u64 {
-        if let Some(area) = self.areas.get(&area_id) {
-            if let Some(id) = area.borrow_mut().instance_id() {
+    fn area_get_object_instance_id(&self, area: Rid) -> u64 {
+        if let Ok(area) = self.get_area(area) {
+            if let Some(id) = area.borrow().instance_id() {
                 return id;
             }
-            godot_error!("{}", RapierError::AreaInstanceIDNotSet(area_id));
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area_id));
         }
         0
     }
@@ -342,17 +286,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::AreaParameter,
         value: Variant,
     ) {
-        if let Some(area) = self.areas.get(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_param(param, value);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_transform(&mut self, area: Rid, transform: Transform3D) {
-        if let Some(area) = self.areas.get(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_transform(transform);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_get_param(
@@ -360,21 +300,17 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         area: Rid,
         param: godot::engine::physics_server_3d::AreaParameter,
     ) -> Variant {
-        if let Some(area) = self.areas.get(&area) {
-            return area.borrow_mut().get_param(param);
+        if let Ok(area) = self.get_area(area) {
+            return area.borrow().get_param(param);
         }
-        godot_error!("{}", RapierError::AreaRidMissing(area));
         Variant::nil()
     }
     fn area_get_transform(&self, area: Rid) -> Transform3D {
-        if let Some(area) = self.areas.get(&area) {
-            if let Some(transform) = area.borrow_mut().get_transform() {
+        if let Ok(area) = self.get_area(area) {
+            if let Some(transform) = area.borrow().get_transform() {
                 return transform;
             }
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
-
         Transform3D::IDENTITY
     }
     fn area_set_collision_layer(&mut self, area: Rid, layer: u32) {
@@ -390,27 +326,21 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn area_set_monitorable(&mut self, area: Rid, monitorable: bool) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_monitorable(monitorable);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_ray_pickable(&mut self, area: Rid, enable: bool) {
         unimplemented!()
     }
     fn area_set_monitor_callback(&mut self, area: Rid, callback: Callable) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_body_monitor_callback(callback);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn area_set_area_monitor_callback(&mut self, area: Rid, callback: Callable) {
-        if let Some(area) = self.areas.get_mut(&area) {
+        if let Ok(area) = self.get_area(area) {
             area.borrow_mut().set_area_monitor_callback(callback);
-        } else {
-            godot_error!("{}", RapierError::AreaRidMissing(area));
         }
     }
     fn body_create(&mut self) -> Rid {
@@ -421,166 +351,117 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
 
     fn body_set_space(&mut self, body: Rid, space: Rid) {
-        if let Some(body) = self.bodies.get_mut(&body) {
-            if let Some(space) = self.spaces.get(&space) {
-                body.borrow_mut().set_space(space.clone());
+        if let Ok(body) = self.get_body(body) {
+            if let Ok(space) = self.get_space(space) {
                 space.borrow_mut().add_body(body);
-            } else {
-                godot_error!("{}", RapierError::SpaceRidMissing(space));
+                body.borrow_mut().set_space(space.clone());
             }
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
-    fn body_get_space(&self, body_id: Rid) -> Rid {
-        if let Some(body) = self.bodies.get(&body_id) {
+    fn body_get_space(&self, body: Rid) -> Rid {
+        if let Ok(body) = self.get_body(body) {
             if let Some(space) = body.borrow().space() {
                 let rid = space.borrow().rid();
-                if self.spaces.contains_key(&rid) {
+                if self.has_space(rid) {
                     return rid;
                 }
-                godot_error!("{}", RapierError::SpaceRidMissing(rid));
-            } else {
-                godot_error!("{}", RapierError::ObjectSpaceNotSet(body_id));
             }
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body_id));
         }
         Rid::Invalid
     }
     fn body_set_mode(&mut self, body: Rid, mode: BodyMode) {
-        if let Some(body) = self.bodies.get(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_body_mode(mode);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_get_mode(&self, body: Rid) -> BodyMode {
-        if let Some(body) = self.bodies.get(&body) {
+        if let Ok(body) = self.get_body(body) {
             return body.borrow().get_body_mode();
         }
-        godot_error!("{}", RapierError::BodyRidMissing(body));
         BodyMode::BODY_MODE_STATIC
     }
     fn body_add_shape(&mut self, body: Rid, shape: Rid, transform: Transform3D, disabled: bool) {
-        if let Some(body) = self.bodies.get_mut(&body) {
-            if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(body) = self.get_body(body) {
+            if let Ok(shape) = self.get_shape(shape) {
                 body.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
-            } else {
-                godot_error!("{}", RapierError::ShapeRidMissing(shape));
             }
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_set_shape(&mut self, body: Rid, shape_idx: i32, shape: Rid) {
-        if let Some(body) = self.bodies.get_mut(&body) {
-            if let Some(shape) = self.shapes.get(&shape) {
+        if let Ok(body) = self.get_body(body) {
+            if let Ok(shape) = self.get_shape(shape) {
                 body.borrow_mut()
                     .set_shape(shape_idx as usize, shape.clone());
-            } else {
-                godot_error!("{}", RapierError::ShapeRidMissing(shape));
             }
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_set_shape_transform(&mut self, body: Rid, shape_idx: i32, transform: Transform3D) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut()
                 .set_shape_transform(shape_idx as usize, transform);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_set_shape_disabled(&mut self, body: Rid, shape_idx: i32, disabled: bool) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut()
                 .set_shape_disabled(shape_idx as usize, disabled);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_get_shape_count(&self, body: Rid) -> i32 {
-        if let Some(body) = self.bodies.get(&body) {
+        if let Ok(body) = self.get_body(body) {
             return body.borrow().shapes().len() as i32;
         }
-        godot_error!("{}", RapierError::BodyRidMissing(body));
         0
     }
-    fn body_get_shape(&self, body_id: Rid, shape_idx: i32) -> Rid {
-        if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(shape_inst) = body.borrow().shapes().get(shape_idx as usize) {
+    fn body_get_shape(&self, body: Rid, shape_idx: i32) -> Rid {
+        if let Ok(body) = self.get_body(body) {
+            if let Some(shape_inst) = body.borrow().get_shape_instance(shape_idx as usize) {
                 return shape_inst.shape.borrow().rid();
             }
-            godot_error!(
-                "{}",
-                RapierError::ShapeNotInObject(shape_idx as usize, body_id)
-            );
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body_id));
         }
         Rid::Invalid
     }
-    fn body_get_shape_transform(&self, body_id: Rid, shape_idx: i32) -> Transform3D {
-        if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(shape_inst) = body.borrow().shapes().get(shape_idx as usize) {
+    fn body_get_shape_transform(&self, body: Rid, shape_idx: i32) -> Transform3D {
+        if let Ok(body) = self.get_body(body) {
+            if let Some(shape_inst) = body.borrow().get_shape_instance(shape_idx as usize) {
                 return isometry_to_transform(&shape_inst.isometry);
             }
-            godot_error!(
-                "{}",
-                RapierError::ShapeNotInObject(shape_idx as usize, body_id)
-            );
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body_id));
         }
-        Transform3D::default()
+        Transform3D::IDENTITY
     }
     fn body_remove_shape(&mut self, body: Rid, shape_idx: i32) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().remove_nth_shape(shape_idx as usize);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_clear_shapes(&mut self, body: Rid) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().clear_shapes();
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_attach_object_instance_id(&mut self, body: Rid, id: u64) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_instance_id(id);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
-    fn body_get_object_instance_id(&self, body_id: Rid) -> u64 {
-        if let Some(body) = self.bodies.get(&body_id) {
-            if let Some(id) = body.borrow_mut().instance_id() {
+    fn body_get_object_instance_id(&self, body: Rid) -> u64 {
+        if let Ok(body) = self.get_body(body) {
+            if let Some(id) = body.borrow().instance_id() {
                 return id;
             }
-            godot_error!("{}", RapierError::BodyInstanceIDNotSet(body_id));
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body_id));
         }
         0
     }
     fn body_set_enable_continuous_collision_detection(&mut self, body: Rid, enable: bool) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_enable_ccd(enable);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_is_continuous_collision_detection_enabled(&self, body: Rid) -> bool {
-        if let Some(body) = self.bodies.get(&body) {
-            return body.borrow_mut().is_ccd_enabled();
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().is_ccd_enabled();
         }
-        godot_error!("{}", RapierError::BodyRidMissing(body));
         false
     }
     fn body_set_collision_layer(&mut self, body: Rid, layer: u32) {
@@ -641,92 +522,70 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn body_apply_central_impulse(&mut self, body: Rid, impulse: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_central_impulse(impulse);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_apply_impulse(&mut self, body: Rid, impulse: Vector3, position: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_impulse(impulse, position);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_apply_torque_impulse(&mut self, body: Rid, impulse: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_torque_impulse(impulse);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_apply_central_force(&mut self, body: Rid, force: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_central_force(force);
         }
     }
     fn body_apply_force(&mut self, body: Rid, force: Vector3, position: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_force(force, position);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_apply_torque(&mut self, body: Rid, torque: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().apply_torque(torque);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_add_constant_central_force(&mut self, body: Rid, force: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().add_constant_central_force(force);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_add_constant_force(&mut self, body: Rid, force: Vector3, position: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().add_constant_force(force, position);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_add_constant_torque(&mut self, body: Rid, torque: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().add_constant_torque(torque);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_set_constant_force(&mut self, body: Rid, force: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_constant_force(force);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_get_constant_force(&self, body: Rid) -> Vector3 {
-        if let Some(body) = self.bodies.get(&body) {
-            return body.borrow_mut().get_constant_force_godot();
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_constant_force_godot();
         }
-        godot_error!("{}", RapierError::BodyRidMissing(body));
         Vector3::ZERO
     }
     fn body_set_constant_torque(&mut self, body: Rid, torque: Vector3) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_constant_torque(torque);
-        } else {
-            godot_error!("{}", RapierError::BodyRidMissing(body));
         }
     }
     fn body_get_constant_torque(&self, body: Rid) -> Vector3 {
-        if let Some(body) = self.bodies.get(&body) {
-            return body.borrow_mut().get_constant_torque_godot();
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_constant_torque_godot();
         }
-        godot_error!("{}", RapierError::BodyRidMissing(body));
         Vector3::ZERO
     }
     fn body_set_axis_velocity(&mut self, body: Rid, axis_velocity: Vector3) {
@@ -775,7 +634,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         unimplemented!()
     }
     fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
-        if let Some(body) = self.bodies.get_mut(&body) {
+        if let Ok(body) = self.get_body(body) {
             body.borrow_mut().set_body_state_callback(callable);
         }
     }
@@ -934,11 +793,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
     fn joint_clear(&mut self, joint_id: Rid) {
-        if let Some(joint) = self.joints.get_mut(&joint_id) {
+        if let Ok(joint) = self.get_joint(joint_id) {
             let empty_joint = RapierJoint::new(joint_id);
             joint.replace(empty_joint);
-        } else {
-            godot_error!("{}", RapierError::JointRidMissing(joint_id));
         }
     }
     fn joint_make_pin(
@@ -1164,7 +1021,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
 
         for space in &self.active_spaces {
-            if let Some(space) = self.spaces.get(space) {
+            if let Ok(space) = self.get_space(*space) {
                 space.borrow_mut().step();
             };
         }
@@ -1176,10 +1033,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
 
         for space in &self.active_spaces {
-            if let Some(space) = self.spaces.get(space) {
+            if let Ok(space) = self.get_space(*space) {
                 space.borrow_mut().call_queries();
-            } else {
-                godot_error!("{}", RapierError::SpaceRidMissing(*space));
             }
         }
     }

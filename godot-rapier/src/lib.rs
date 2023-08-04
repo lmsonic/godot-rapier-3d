@@ -15,6 +15,7 @@ mod direct_space_state_3d;
 mod error;
 mod joint;
 mod physics_server_3d;
+mod physics_server_3d_utils;
 mod shapes;
 mod space;
 

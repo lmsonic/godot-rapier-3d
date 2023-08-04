@@ -6,10 +6,9 @@ use rapier3d::prelude::*;
 
 use crate::{
     collision_object::RapierCollisionObject, conversions::body_mode_to_body_type,
-    shape::RapierShapeInstance, space::RapierSpace, RapierError, RapierResult,
+    error::RapierError, error::RapierResult, shapes::RapierShapeInstance, space::RapierSpace,
 };
 
-#[allow(clippy::module_name_repetitions)]
 pub struct RapierBody {
     rid: Rid,
     space: Option<Rc<RefCell<RapierSpace>>>,
@@ -27,15 +26,15 @@ impl Default for RapierBody {
     fn default() -> Self {
         Self {
             rid: Rid::Invalid,
-            space: Default::default(),
-            handle: Default::default(),
-            shapes: Default::default(),
+            space: Option::default(),
+            handle: Option::default(),
+            shapes: Vec::default(),
             body_mode: BodyMode::BODY_MODE_STATIC,
-            instance_id: Default::default(),
+            instance_id: Option::default(),
             ccd_enabled: Default::default(),
             body_state_callback: Callable::invalid(),
-            constant_force: Default::default(),
-            constant_torque: Default::default(),
+            constant_force: Vector::default(),
+            constant_torque: Vector::default(),
         }
     }
 }

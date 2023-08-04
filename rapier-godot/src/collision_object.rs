@@ -5,12 +5,11 @@ use rapier3d::prelude::*;
 
 use crate::{
     conversions::transform_to_isometry,
-    shape::{RapierShape, RapierShapeInstance},
+    error::RapierError,
+    shapes::{RapierShape, RapierShapeInstance},
     space::RapierSpace,
-    RapierError,
 };
 
-#[allow(clippy::module_name_repetitions)]
 pub trait RapierCollisionObject {
     fn rid(&self) -> Rid;
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>);

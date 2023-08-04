@@ -9,9 +9,10 @@ use rapier3d::prelude::*;
 use crate::{
     collision_object::RapierCollisionObject,
     conversions::{isometry_to_transform, transform_to_isometry},
-    shape::RapierShapeInstance,
+    error::RapierError,
+    error::RapierResult,
+    shapes::RapierShapeInstance,
     space::RapierSpace,
-    RapierError, RapierResult,
 };
 
 const DEFAULT_WIND_FORCE_MAGNITUDE: f32 = 0.0;
@@ -20,7 +21,6 @@ const DEFAULT_WIND_ATTENUATION_FACTOR: f32 = 0.0;
 const DEFAULT_WIND_SOURCE: Vector3 = Vector3::ZERO;
 const DEFAULT_WIND_DIRECTION: Vector3 = Vector3::ZERO;
 
-#[allow(clippy::module_name_repetitions)]
 pub struct RapierArea {
     rid: Rid,
     space: Option<Rc<RefCell<RapierSpace>>>,
@@ -50,14 +50,14 @@ impl Default for RapierArea {
         Self {
             rid: Rid::Invalid,
 
-            space: Default::default(),
-            handle: Default::default(),
-            shapes: Default::default(),
-            instance_id: Default::default(),
+            space: Option::default(),
+            handle: Option::default(),
+            shapes: Vec::default(),
+            instance_id: Option::default(),
 
             priority: Default::default(),
             gravity: Default::default(),
-            gravity_vector: Default::default(),
+            gravity_vector: Vector3::default(),
             is_point_gravity: Default::default(),
             point_gravity_distance: Default::default(),
             gravity_mode: AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_DISABLED,

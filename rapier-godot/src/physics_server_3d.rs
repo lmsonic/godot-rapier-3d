@@ -24,13 +24,13 @@ use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
 use crate::conversions::{isometry_to_transform, transform_to_isometry};
+use crate::error::RapierError;
 use crate::joint::RapierJoint;
-use crate::shape::{
+use crate::shapes::{
     RapierBoxShape, RapierCapsuleShape, RapierConcaveShape, RapierConvexShape, RapierCylinderShape,
     RapierHeightmapShape, RapierShape, RapierSphereShape, SeparationRayShape, WorldBoundaryShape,
 };
 use crate::space::RapierSpace;
-use crate::RapierError;
 
 #[derive(GodotClass, Default)]
 #[class(base=PhysicsServer3DExtension,init)]

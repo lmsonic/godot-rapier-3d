@@ -8,7 +8,6 @@ use crate::{
     conversions::body_mode_to_body_type,
 };
 
-#[allow(clippy::module_name_repetitions)]
 pub struct RapierSpace {
     rid: Rid,
     godot_bodies: HashMap<RigidBodyHandle, Rc<RefCell<RapierBody>>>,
@@ -37,25 +36,24 @@ const DEFAULT_SLEEP_THRESHOLD_LINEAR: f32 = 0.1;
 const DEFAULT_SLEEP_THRESHOLD_ANGULAR: f32 = 8.0 * std::f32::consts::PI / 180.0;
 const DEFAULT_SOLVER_ITERATIONS: u32 = 8;
 
-#[allow(clippy::default_trait_access)]
 impl RapierSpace {
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            godot_bodies: Default::default(),
-            godot_areas: Default::default(),
+            godot_bodies: HashMap::default(),
+            godot_areas: HashMap::default(),
 
-            rigid_body_set: Default::default(),
-            collider_set: Default::default(),
-            gravity: Default::default(),
-            integration_parameters: Default::default(),
-            physics_pipeline: Default::default(),
-            island_manager: Default::default(),
-            broad_phase: Default::default(),
-            narrow_phase: Default::default(),
-            impulse_joint_set: Default::default(),
-            multibody_joint_set: Default::default(),
-            ccd_solver: Default::default(),
+            rigid_body_set: RigidBodySet::default(),
+            collider_set: ColliderSet::default(),
+            gravity: Vector::default(),
+            integration_parameters: IntegrationParameters::default(),
+            physics_pipeline: PhysicsPipeline::default(),
+            island_manager: IslandManager::default(),
+            broad_phase: BroadPhase::default(),
+            narrow_phase: NarrowPhase::default(),
+            impulse_joint_set: ImpulseJointSet::default(),
+            multibody_joint_set: MultibodyJointSet::default(),
+            ccd_solver: CCDSolver::default(),
             physics_hooks: Default::default(),
             event_handler: Default::default(),
         }

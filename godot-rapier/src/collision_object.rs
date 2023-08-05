@@ -5,16 +5,24 @@ use rapier3d::prelude::*;
 
 use crate::{
     conversions::transform_to_isometry,
-    error::RapierError,
+    error::{RapierError, RapierResult},
     shapes::{RapierShape, RapierShapeInstance},
     space::RapierSpace,
 };
+
+pub enum Handle {
+    AreaHandle(ColliderHandle),
+    BodyHandle(RigidBodyHandle),
+    NotSet,
+}
 
 pub trait RapierCollisionObject {
     fn rid(&self) -> Rid;
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>);
     fn space(&self) -> Option<Rc<RefCell<RapierSpace>>>;
     fn remove_space(&mut self);
+
+    fn generic_handle(&self) -> Handle;
 
     fn add_shape(
         &mut self,
@@ -82,10 +90,21 @@ pub trait RapierCollisionObject {
 
     fn shapes(&self) -> &Vec<RapierShapeInstance>;
     fn shapes_mut(&mut self) -> &mut Vec<RapierShapeInstance>;
-    fn update_shapes(&mut self);
+    fn update_shapes(&mut self) {
+        if let Some(space) = self.space() {
+            match self.generic_handle() {
+                Handle::AreaHandle(handle) => space
+                    .borrow_mut()
+                    .update_area_shape(handle, self.build_shared_shape()),
+                Handle::BodyHandle(handle) => space
+                    .borrow_mut()
+                    .update_body_shape(handle, self.build_shared_shape()),
+                Handle::NotSet => todo!(),
+            }
+        }
+    }
     fn set_instance_id(&mut self, id: u64);
     fn instance_id(&self) -> Option<u64>;
-
     fn remove_from_space(&self);
 
     fn build_shared_shape(&self) -> Option<SharedShape> {
@@ -111,26 +130,40 @@ pub trait RapierCollisionObject {
     }
 
     fn build_collider(&self, is_sensor: bool) -> Collider {
+        let collision_groups = InteractionGroups::new(
+            Group::from(self.get_collision_layer()),
+            Group::from(self.get_collision_mask()),
+        );
         self.build_shared_shape().map_or(
             {
                 // Empty shape collider
-                ColliderBuilder::ball(0.5)
+                ColliderBuilder::ball(0.1)
                     .enabled(false)
                     .sensor(true)
+                    .collision_groups(collision_groups)
                     .build()
             },
             |shared_shape| {
                 if shared_shape.as_compound().is_some() {
-                    ColliderBuilder::new(shared_shape).sensor(is_sensor).build()
+                    ColliderBuilder::new(shared_shape)
+                        .sensor(is_sensor)
+                        .collision_groups(collision_groups)
+                        .build()
                 } else {
                     let shape_instance = &self.shapes()[0];
                     ColliderBuilder::new(shared_shape)
                         .position(shape_instance.isometry)
                         .sensor(is_sensor)
                         .enabled(!shape_instance.disabled)
+                        .collision_groups(collision_groups)
                         .build()
                 }
             },
         )
     }
+
+    fn set_collision_layer(&mut self, layer: u32);
+    fn get_collision_layer(&self) -> u32;
+    fn set_collision_mask(&mut self, mask: u32);
+    fn get_collision_mask(&self) -> u32;
 }

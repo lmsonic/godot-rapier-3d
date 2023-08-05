@@ -5,6 +5,18 @@ use rapier3d::{
 };
 
 type RapierQuaternion = rapier3d::na::Quaternion<f32>;
+#[inline]
+pub fn rapier_vector_to_godot_vector(v: Vector<f32>) -> Vector3 {
+    Vector3::new(v.x, v.y, v.z)
+}
+#[inline]
+pub const fn godot_vector_to_rapier_vector(v: Vector3) -> Vector<f32> {
+    vector![v.x, v.y, v.z]
+}
+#[inline]
+pub const fn godot_vector_to_rapier_point(v: Vector3) -> Point<f32> {
+    point![v.x, v.y, v.z]
+}
 
 pub fn transform_to_isometry(transform: &Transform3D) -> Isometry<f32> {
     let translation = Translation3::new(transform.origin.x, transform.origin.y, transform.origin.z);
@@ -27,6 +39,7 @@ pub fn isometry_to_transform(isometry: &Isometry<f32>) -> Transform3D {
     }
 }
 
+#[inline]
 pub const fn body_mode_to_body_type(mode: BodyMode) -> RigidBodyType {
     match mode {
         BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => RigidBodyType::Dynamic,

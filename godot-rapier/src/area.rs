@@ -7,7 +7,7 @@ use godot::{
 use rapier3d::prelude::*;
 
 use crate::{
-    collision_object::RapierCollisionObject,
+    collision_object::{Handle, RapierCollisionObject},
     conversions::{isometry_to_transform, transform_to_isometry},
     error::RapierError,
     error::RapierResult,
@@ -43,6 +43,8 @@ pub struct RapierArea {
     area_monitor_callback: Callable,
 
     monitorable: bool,
+    collision_layer: u32,
+    collision_mask: u32,
 }
 
 impl Default for RapierArea {
@@ -70,6 +72,8 @@ impl Default for RapierArea {
             area_monitor_callback: Callable::invalid(),
 
             monitorable: Default::default(),
+            collision_layer: 1,
+            collision_mask: 1,
         }
     }
 }
@@ -94,41 +98,18 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn set_instance_id(&mut self, id: u64) {
-        if self.instance_id.is_none() {
-            godot_error!("{}", RapierError::AreaInstanceIDNotSet(self.rid));
-        }
         self.instance_id = Some(id);
     }
 
     fn instance_id(&self) -> Option<u64> {
+        if self.instance_id.is_none() {
+            godot_error!("{}", RapierError::AreaInstanceIDNotSet(self.rid));
+        }
         self.instance_id
     }
 
     fn rid(&self) -> Rid {
         self.rid
-    }
-    fn update_shapes(&mut self) {
-        let update_shapes = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
-            let collider = space
-                .get_area_mut(handle)
-                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
-
-            if let Some(shapes) = self.build_shared_shape() {
-                collider.set_shape(shapes);
-            } else {
-                collider.set_enabled(false);
-            }
-            Ok(())
-        };
-        if let Err(e) = update_shapes() {
-            godot_error!("{}", e);
-        }
     }
 
     fn remove_from_space(&self) {
@@ -142,6 +123,29 @@ impl RapierCollisionObject for RapierArea {
     fn remove_space(&mut self) {
         self.space = None;
         self.handle = None;
+    }
+
+    fn set_collision_layer(&mut self, layer: u32) {
+        self.collision_layer = layer;
+    }
+
+    fn get_collision_layer(&self) -> u32 {
+        self.collision_layer
+    }
+
+    fn set_collision_mask(&mut self, mask: u32) {
+        self.collision_mask = mask;
+    }
+
+    fn get_collision_mask(&self) -> u32 {
+        self.collision_mask
+    }
+
+    fn generic_handle(&self) -> Handle {
+        match self.handle() {
+            Some(handle) => Handle::AreaHandle(handle),
+            None => Handle::NotSet,
+        }
     }
 }
 
@@ -159,45 +163,20 @@ impl RapierArea {
     }
 
     pub fn set_transform(&mut self, transform: Transform3D) {
-        let set_transform = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
-            let collider = space
-                .get_area_mut(handle)
-                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
-            collider.set_position(transform_to_isometry(&transform));
-            Ok(())
-        };
-        if let Err(e) = set_transform() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().set_area_transform(handle, transform);
+            }
         }
     }
 
-    pub fn get_transform(&self) -> Option<Transform3D> {
-        let get_transform = || -> RapierResult<Transform3D> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::AreaHandleNotSet(self.rid))?;
-            let collider = space
-                .get_area_mut(handle)
-                .ok_or(RapierError::AreaHandleInvalid(self.rid))?;
-
-            Ok(isometry_to_transform(collider.position()))
-        };
-        match get_transform() {
-            Ok(transform) => Some(transform),
-            Err(e) => {
-                godot_error!("{e}");
-                None
+    pub fn get_transform(&self) -> Transform3D {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                return space.borrow_mut().get_area_transform(handle);
             }
         }
+        Transform3D::IDENTITY
     }
 
     pub fn get_param(&self, param: AreaParameter) -> Variant {
@@ -289,7 +268,10 @@ impl RapierArea {
         self.monitorable = monitorable;
     }
 
-    pub const fn handle(&self) -> Option<ColliderHandle> {
+    pub fn handle(&self) -> Option<ColliderHandle> {
+        if self.handle.is_none() {
+            godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
+        }
         self.handle
     }
 }

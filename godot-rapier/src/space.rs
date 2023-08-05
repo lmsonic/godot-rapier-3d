@@ -1,11 +1,19 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use godot::{engine::physics_server_3d::SpaceParameter, prelude::*};
+use godot::{
+    engine::{physics_server_3d::BodyMode, physics_server_3d::SpaceParameter},
+    prelude::*,
+};
 use rapier3d::prelude::*;
 
 use crate::{
-    area::RapierArea, body::RapierBody, collision_object::RapierCollisionObject,
-    conversions::body_mode_to_body_type,
+    area::RapierArea,
+    body::RapierBody,
+    collision_object::RapierCollisionObject,
+    conversions::{
+        body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
+        isometry_to_transform, transform_to_isometry,
+    },
 };
 
 pub struct RapierSpace {
@@ -60,7 +68,9 @@ impl RapierSpace {
         }
     }
 
-    pub fn call_queries(&mut self) {}
+    pub fn call_queries(&mut self) {
+        // TODO
+    }
 
     pub fn step(&mut self) {
         for (handle, body) in self.rigid_body_set.iter_mut() {
@@ -87,39 +97,94 @@ impl RapierSpace {
         );
     }
 
-    pub fn get_area(&self, handle: ColliderHandle) -> Option<&Collider> {
-        self.collider_set.get(handle)
+    pub fn set_area_transform(&mut self, handle: ColliderHandle, transform: Transform3D) {
+        if let Some(area_collider) = self.collider_set.get_mut(handle) {
+            area_collider.set_position(transform_to_isometry(&transform));
+        }
+    }
+    pub fn get_area_transform(&self, handle: ColliderHandle) -> Transform3D {
+        self.collider_set
+            .get(handle)
+            .map_or(Transform3D::IDENTITY, |area_collider| {
+                isometry_to_transform(area_collider.position())
+            })
     }
 
-    pub fn get_area_mut(&mut self, handle: ColliderHandle) -> Option<&mut Collider> {
-        self.collider_set.get_mut(handle)
+    pub fn update_area_shape(&mut self, handle: ColliderHandle, shape: Option<SharedShape>) {
+        if let Some(area_collider) = self.collider_set.get_mut(handle) {
+            match shape {
+                Some(shape) => area_collider.set_shape(shape),
+                None => area_collider.set_enabled(false),
+            }
+        }
+    }
+    pub fn update_body_shape(&mut self, handle: RigidBodyHandle, shape: Option<SharedShape>) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                match shape {
+                    Some(shape) => collider.set_shape(shape),
+                    None => collider.set_enabled(false),
+                }
+            }
+        }
     }
 
+    pub fn set_body_mode(&mut self, handle: RigidBodyHandle, mode: BodyMode) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_body_type(body_mode_to_body_type(mode), true);
+        }
+    }
+
+    pub fn set_ccd_enabled(&mut self, handle: RigidBodyHandle, enabled: bool) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.enable_ccd(enabled);
+        }
+    }
+
+    pub fn apply_central_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.apply_impulse(godot_vector_to_rapier_vector(impulse), true);
+        }
+    }
+    pub fn apply_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3, position: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.apply_impulse_at_point(
+                godot_vector_to_rapier_vector(impulse),
+                godot_vector_to_rapier_point(position),
+                true,
+            );
+        }
+    }
+    pub fn apply_torque_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.apply_torque_impulse(godot_vector_to_rapier_vector(impulse), true);
+        }
+    }
+    pub fn apply_torque(&mut self, handle: RigidBodyHandle, torque: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.add_torque(godot_vector_to_rapier_vector(torque), true);
+        }
+    }
+    pub fn apply_central_force(&mut self, handle: RigidBodyHandle, force: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.add_force(godot_vector_to_rapier_vector(force), true);
+        }
+    }
+    pub fn apply_force(&mut self, handle: RigidBodyHandle, force: Vector3, position: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.add_force_at_point(
+                godot_vector_to_rapier_vector(force),
+                godot_vector_to_rapier_point(position),
+                true,
+            );
+        }
+    }
     pub fn get_body(&self, handle: RigidBodyHandle) -> Option<&RigidBody> {
         self.rigid_body_set.get(handle)
     }
 
-    pub fn get_body_mut(&mut self, handle: RigidBodyHandle) -> Option<&mut RigidBody> {
-        self.rigid_body_set.get_mut(handle)
-    }
-
-    pub fn get_body_collider(&self, handle: RigidBodyHandle) -> Option<&Collider> {
-        if let Some(body) = self.get_body(handle) {
-            let coll_handle = body.colliders()[0];
-            return self.collider_set.get(coll_handle);
-        }
-        None
-    }
-
-    pub fn get_body_collider_mut(&mut self, handle: RigidBodyHandle) -> Option<&mut Collider> {
-        if let Some(body) = self.get_body_mut(handle) {
-            let coll_handle = body.colliders()[0];
-            return self.collider_set.get_mut(coll_handle);
-        }
-        None
-    }
-
     pub fn set_param(&mut self, param: SpaceParameter, value: f32) {
+        // TODO
         match param {
             SpaceParameter::SPACE_PARAM_CONTACT_RECYCLE_RADIUS => {
                 godot_warn!(
@@ -176,6 +241,7 @@ impl RapierSpace {
     }
 
     pub const fn get_param(&self, param: SpaceParameter) -> f32 {
+        // TODO
         match param {
             SpaceParameter::SPACE_PARAM_CONTACT_RECYCLE_RADIUS => DEFAULT_CONTACT_RECYCLE_RADIUS,
             SpaceParameter::SPACE_PARAM_CONTACT_MAX_SEPARATION => DEFAULT_CONTACT_MAX_SEPARATION,

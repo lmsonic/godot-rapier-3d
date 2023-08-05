@@ -2,7 +2,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use godot::prelude::*;
+use godot::prelude::{math::ApproxEq, *};
 use rapier3d::prelude::*;
 
 use crate::collision_object::RapierCollisionObject;
@@ -12,6 +12,7 @@ pub struct RapierConvexShape {
     shape: ConvexPolyhedron,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
+    margin: f32,
 }
 impl RapierConvexShape {
     pub fn new(rid: Rid) -> Self {
@@ -24,6 +25,7 @@ impl RapierConvexShape {
             .unwrap(),
             owners: vec![],
             rid,
+            margin: 0.0,
         }
     }
 }
@@ -62,7 +64,11 @@ impl RapierShape for RapierConvexShape {
     }
 
     fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape.clone())
+        if self.margin.is_zero_approx() {
+            SharedShape::new(self.shape.clone())
+        } else {
+            SharedShape::round_convex_hull(self.shape.points(), self.margin).unwrap()
+        }
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
@@ -71,5 +77,15 @@ impl RapierShape for RapierConvexShape {
 
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
+    }
+    fn set_margin(&mut self, margin: f32) {
+        if margin.approx_eq(&self.margin) {
+            self.margin = margin;
+            self.update_owners();
+        }
+    }
+
+    fn get_margin(&self) -> f32 {
+        self.margin
     }
 }

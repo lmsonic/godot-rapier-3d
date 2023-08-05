@@ -27,6 +27,7 @@ pub use self::separation_ray_shape::RapierSeparationRayShape;
 pub use self::sphere_shape::RapierSphereShape;
 pub use self::world_boundary_shape::RapierWorldBoundaryShape;
 
+const DEFAULT_SOLVER_BIAS: f32 = 0.0;
 pub trait RapierShape {
     fn rid(&self) -> Rid;
     fn get_data(&self) -> Variant;
@@ -43,6 +44,17 @@ pub trait RapierShape {
         for owner in self.owners() {
             owner.borrow_mut().remove_shape_rid(self.rid());
         }
+    }
+
+    fn set_solver_bias(&mut self, bias: f32) {
+        godot_warn!("Custom solver bias for shapes is not supported by Godot Rapier.");
+    }
+    fn get_solver_bias(&self) -> f32 {
+        DEFAULT_SOLVER_BIAS
+    }
+    fn set_margin(&mut self, margin: f32) {}
+    fn get_margin(&self) -> f32 {
+        0.0
     }
 }
 

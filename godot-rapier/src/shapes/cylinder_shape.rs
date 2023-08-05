@@ -11,6 +11,7 @@ pub struct RapierCylinderShape {
     shape: Cylinder,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
+    margin: f32,
 }
 
 impl RapierCylinderShape {
@@ -19,6 +20,7 @@ impl RapierCylinderShape {
             shape: Cylinder::new(0.5, 0.2),
             owners: vec![],
             rid,
+            margin: 0.0,
         }
     }
 }
@@ -54,7 +56,11 @@ impl RapierShape for RapierCylinderShape {
         };
     }
     fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+        if self.margin.is_zero_approx() {
+            SharedShape::new(self.shape)
+        } else {
+            SharedShape::round_cylinder(self.shape.half_height, self.shape.radius, self.margin)
+        }
     }
 
     fn rid(&self) -> Rid {
@@ -65,5 +71,15 @@ impl RapierShape for RapierCylinderShape {
     }
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
         godot::engine::physics_server_3d::ShapeType::SHAPE_CYLINDER
+    }
+    fn set_margin(&mut self, margin: f32) {
+        if margin.approx_eq(&self.margin) {
+            self.margin = margin;
+            self.update_owners();
+        }
+    }
+
+    fn get_margin(&self) -> f32 {
+        self.margin
     }
 }

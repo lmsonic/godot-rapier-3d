@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use godot::prelude::*;
+use godot::prelude::{math::ApproxEq, *};
 use rapier3d::prelude::*;
 
 use crate::collision_object::RapierCollisionObject;
@@ -10,6 +10,7 @@ pub struct RapierBoxShape {
     shape: Cuboid,
     owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
     rid: Rid,
+    margin: f32,
 }
 
 impl RapierBoxShape {
@@ -18,6 +19,7 @@ impl RapierBoxShape {
             shape: Cuboid::new(vector![0.5, 0.5, 0.5]),
             owners: vec![],
             rid,
+            margin: 0.0,
         }
     }
 }
@@ -44,7 +46,16 @@ impl RapierShape for RapierBoxShape {
         };
     }
     fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+        if self.margin.is_zero_approx() {
+            SharedShape::new(self.shape)
+        } else {
+            SharedShape::round_cuboid(
+                self.shape.half_extents.x,
+                self.shape.half_extents.y,
+                self.shape.half_extents.z,
+                self.margin,
+            )
+        }
     }
 
     fn rid(&self) -> Rid {
@@ -55,5 +66,16 @@ impl RapierShape for RapierBoxShape {
     }
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
         godot::engine::physics_server_3d::ShapeType::SHAPE_BOX
+    }
+
+    fn set_margin(&mut self, margin: f32) {
+        if margin.approx_eq(&self.margin) {
+            self.margin = margin;
+            self.update_owners();
+        }
+    }
+
+    fn get_margin(&self) -> f32 {
+        self.margin
     }
 }

@@ -5,9 +5,16 @@ use godot::{engine::physics_server_3d::BodyMode, prelude::*};
 use rapier3d::prelude::*;
 
 use crate::{
-    collision_object::RapierCollisionObject, conversions::body_mode_to_body_type,
-    direct_body_state_3d::RapierPhysicsDirectBodyState3D, error::RapierError, error::RapierResult,
-    shapes::RapierShapeInstance, space::RapierSpace,
+    collision_object::{Handle, RapierCollisionObject},
+    conversions::{
+        body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
+        rapier_vector_to_godot_vector,
+    },
+    direct_body_state_3d::RapierPhysicsDirectBodyState3D,
+    error::RapierError,
+    error::RapierResult,
+    shapes::RapierShapeInstance,
+    space::RapierSpace,
 };
 
 pub struct RapierBody {
@@ -21,6 +28,9 @@ pub struct RapierBody {
     body_state_callback: Callable,
     constant_force: Vector<f32>,
     constant_torque: Vector<f32>,
+
+    collision_layer: u32,
+    collision_mask: u32,
 }
 
 impl Default for RapierBody {
@@ -36,6 +46,8 @@ impl Default for RapierBody {
             body_state_callback: Callable::invalid(),
             constant_force: Vector::default(),
             constant_torque: Vector::default(),
+            collision_layer: 1,
+            collision_mask: 1,
         }
     }
 }
@@ -44,9 +56,18 @@ impl RapierCollisionObject for RapierBody {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
         self.space = Some(space);
     }
+    #[track_caller]
     fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
         if self.space.is_none() {
-            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+            let caller_location = std::panic::Location::caller();
+            let file = caller_location.file();
+            let line_number = caller_location.line();
+            godot_error!(
+                "{}, called from {}:{}",
+                RapierError::ObjectSpaceNotSet(self.rid),
+                file,
+                line_number
+            );
         }
         self.space.clone()
     }
@@ -72,29 +93,6 @@ impl RapierCollisionObject for RapierBody {
     fn rid(&self) -> Rid {
         self.rid
     }
-    fn update_shapes(&mut self) {
-        let update_shapes = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let collider = space
-                .get_body_collider_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-
-            if let Some(shapes) = self.build_shared_shape() {
-                collider.set_shape(shapes);
-            } else {
-                collider.set_enabled(false);
-            }
-            Ok(())
-        };
-        if let Err(e) = update_shapes() {
-            godot_error!("{e}");
-        }
-    }
 
     fn remove_from_space(&self) {
         if let Some(space) = &self.space {
@@ -106,6 +104,31 @@ impl RapierCollisionObject for RapierBody {
     fn remove_space(&mut self) {
         self.space = None;
         self.handle = None;
+    }
+    fn set_collision_layer(&mut self, layer: u32) {
+        self.collision_layer = layer;
+    }
+
+    fn get_collision_layer(&self) -> u32 {
+        self.collision_layer
+    }
+
+    fn set_collision_mask(&mut self, mask: u32) {
+        self.collision_mask = mask;
+    }
+
+    fn get_collision_mask(&self) -> u32 {
+        self.collision_mask
+    }
+
+    fn generic_handle(&self) -> Handle {
+        if self.handle.is_none() {
+            godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
+        }
+        match self.handle {
+            Some(handle) => Handle::BodyHandle(handle),
+            None => Handle::NotSet,
+        }
     }
 }
 
@@ -120,37 +143,17 @@ impl RapierBody {
     pub fn set_body_mode(&mut self, mode: BodyMode) {
         self.body_mode = mode;
         if let Some(space) = &self.space {
-            // Avoid sending an error if space is not set yet
-            let set_body_mode = || -> RapierResult<()> {
-                let mut space = space.borrow_mut();
-                let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-                let body = space
-                    .get_body_mut(handle)
-                    .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-                body.set_body_type(body_mode_to_body_type(mode), true);
-                Ok(())
-            };
-            if let Err(e) = set_body_mode() {
-                godot_error!("{e}");
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().set_body_mode(handle, mode);
             }
         }
     }
 
     pub fn set_enable_ccd(&mut self, enabled: bool) {
         self.ccd_enabled = enabled;
-        if let Some(space) = &self.space {
-            // Avoid sending an error if space is not set yet
-            let set_body_mode = || -> RapierResult<()> {
-                let mut space = space.borrow_mut();
-                let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-                let body = space
-                    .get_body_mut(handle)
-                    .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-                body.enable_ccd(enabled);
-                Ok(())
-            };
-            if let Err(e) = set_body_mode() {
-                godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().set_ccd_enabled(handle, enabled);
             }
         }
     }
@@ -176,178 +179,85 @@ impl RapierBody {
     }
 
     pub fn apply_central_impulse(&mut self, impulse: Vector3) {
-        let apply_central_impulse = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.apply_impulse(vector![impulse.x, impulse.y, impulse.z], true);
-            Ok(())
-        };
-        if let Err(e) = apply_central_impulse() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_central_impulse(handle, impulse);
+            }
         }
     }
     pub fn apply_impulse(&mut self, impulse: Vector3, position: Vector3) {
-        let apply_impulse = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.apply_impulse_at_point(
-                vector![impulse.x, impulse.y, impulse.z],
-                point![position.x, position.y, position.z],
-                true,
-            );
-            Ok(())
-        };
-        if let Err(e) = apply_impulse() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_impulse(handle, impulse, position);
+            }
         }
     }
 
     pub fn apply_torque_impulse(&mut self, impulse: Vector3) {
-        let apply_torque_impulse = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.apply_torque_impulse(vector![impulse.x, impulse.y, impulse.z], true);
-
-            Ok(())
-        };
-        if let Err(e) = apply_torque_impulse() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_torque_impulse(handle, impulse);
+            }
         }
     }
 
-    pub fn apply_torque(&mut self, impulse: Vector3) {
-        let apply_torque = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.add_torque(vector![impulse.x, impulse.y, impulse.z], true);
-
-            Ok(())
-        };
-        if let Err(e) = apply_torque() {
-            godot_error!("{e}");
+    pub fn apply_torque(&mut self, torque: Vector3) {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_torque(handle, torque);
+            }
         }
     }
 
     pub fn apply_central_force(&mut self, force: Vector3) {
-        let apply_central_force = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.add_force(vector![force.x, force.y, force.z], true);
-            Ok(())
-        };
-        if let Err(e) = apply_central_force() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_central_force(handle, force);
+            }
         }
     }
     pub fn apply_force(&mut self, force: Vector3, position: Vector3) {
-        let apply_force = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            body.add_force_at_point(
-                vector![force.x, force.y, force.z],
-                point![position.x, position.y, position.z],
-                true,
-            );
-            Ok(())
-        };
-        if let Err(e) = apply_force() {
-            godot_error!("{e}");
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().apply_force(handle, force, position);
+            }
         }
     }
-    pub fn add_constant_force(&mut self, force: Vector3, point: Vector3) {
-        let mut add_constant_force = || -> RapierResult<()> {
-            let mut space = self
-                .space
-                .as_ref()
-                .ok_or(RapierError::ObjectSpaceNotSet(self.rid))?
-                .borrow_mut();
-            let handle = self.handle.ok_or(RapierError::BodyHandleNotSet(self.rid))?;
-            let body = space
-                .get_body_mut(handle)
-                .ok_or(RapierError::BodyHandleInvalid(self.rid))?;
-            let center_of_mass = body.center_of_mass();
-            let position = body.translation();
-            let center_of_mass_relative = center_of_mass - position;
+    pub fn add_constant_force(&mut self, force: Vector3, position: Vector3) {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    let center_of_mass = body.center_of_mass();
+                    let translation = body.translation();
+                    let center_of_mass_relative = center_of_mass - translation;
 
-            let point = point![point.x, point.y, point.z];
-            let force = vector![force.x, force.y, force.z];
+                    let point = godot_vector_to_rapier_point(position);
+                    let force = godot_vector_to_rapier_vector(force);
 
-            self.constant_force += force;
-            self.constant_torque += (point - center_of_mass_relative).cross(&force);
-            Ok(())
-        };
-        if let Err(e) = add_constant_force() {
-            godot_error!("{e}");
+                    self.constant_force += force;
+                    self.constant_torque += (point - center_of_mass_relative).cross(&force);
+                }
+            }
         }
     }
     pub fn add_constant_central_force(&mut self, force: Vector3) {
-        self.constant_force += vector![force.x, force.y, force.z];
+        self.constant_force += godot_vector_to_rapier_vector(force);
     }
     pub fn add_constant_torque(&mut self, torque: Vector3) {
-        self.constant_torque += vector![torque.x, torque.y, torque.z];
+        self.constant_torque += godot_vector_to_rapier_vector(torque);
     }
     pub fn set_constant_force(&mut self, force: Vector3) {
-        self.constant_force = vector![force.x, force.y, force.z];
+        self.constant_force = godot_vector_to_rapier_vector(force);
     }
     pub fn set_constant_torque(&mut self, torque: Vector3) {
-        self.constant_torque = vector![torque.x, torque.y, torque.z];
+        self.constant_torque = godot_vector_to_rapier_vector(torque);
     }
 
     pub fn get_constant_force_godot(&self) -> Vector3 {
-        Vector3::new(
-            self.constant_force.x,
-            self.constant_force.y,
-            self.constant_force.z,
-        )
+        rapier_vector_to_godot_vector(self.constant_force)
     }
     pub fn get_constant_torque_godot(&self) -> Vector3 {
-        Vector3::new(
-            self.constant_torque.x,
-            self.constant_torque.y,
-            self.constant_torque.z,
-        )
+        rapier_vector_to_godot_vector(self.constant_torque)
     }
     pub const fn get_constant_force(&self) -> Vector<f32> {
         self.constant_force
@@ -356,7 +266,10 @@ impl RapierBody {
         self.constant_torque
     }
 
-    pub const fn handle(&self) -> Option<RigidBodyHandle> {
+    pub fn handle(&self) -> Option<RigidBodyHandle> {
+        if self.handle.is_none() {
+            godot_error!("{}", RapierError::BodyHandleNotSet(self.rid));
+        }
         self.handle
     }
 }

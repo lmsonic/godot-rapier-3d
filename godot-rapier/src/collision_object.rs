@@ -129,7 +129,7 @@ pub trait RapierCollisionObject {
         }
     }
 
-    fn build_collider(&self, is_sensor: bool) -> Collider {
+    fn build_collider(&self) -> ColliderBuilder {
         let collision_groups = InteractionGroups::new(
             Group::from(self.get_collision_layer()),
             Group::from(self.get_collision_mask()),
@@ -141,22 +141,16 @@ pub trait RapierCollisionObject {
                     .enabled(false)
                     .sensor(true)
                     .collision_groups(collision_groups)
-                    .build()
             },
             |shared_shape| {
                 if shared_shape.as_compound().is_some() {
-                    ColliderBuilder::new(shared_shape)
-                        .sensor(is_sensor)
-                        .collision_groups(collision_groups)
-                        .build()
+                    ColliderBuilder::new(shared_shape).collision_groups(collision_groups)
                 } else {
                     let shape_instance = &self.shapes()[0];
                     ColliderBuilder::new(shared_shape)
                         .position(shape_instance.isometry)
-                        .sensor(is_sensor)
                         .enabled(!shape_instance.disabled)
                         .collision_groups(collision_groups)
-                        .build()
                 }
             },
         )

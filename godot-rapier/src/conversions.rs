@@ -9,6 +9,11 @@ type RapierQuaternion = rapier3d::na::Quaternion<f32>;
 pub fn rapier_vector_to_godot_vector(v: Vector<f32>) -> Vector3 {
     Vector3::new(v.x, v.y, v.z)
 }
+
+#[inline]
+pub fn rapier_point_to_godot_vector(v: Point<f32>) -> Vector3 {
+    Vector3::new(v.x, v.y, v.z)
+}
 #[inline]
 pub const fn godot_vector_to_rapier_vector(v: Vector3) -> Vector<f32> {
     vector![v.x, v.y, v.z]

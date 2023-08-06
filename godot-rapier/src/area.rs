@@ -127,6 +127,15 @@ impl RapierCollisionObject for RapierArea {
 
     fn set_collision_layer(&mut self, layer: u32) {
         self.collision_layer = layer;
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().set_area_collision_group(
+                    handle,
+                    self.collision_layer,
+                    self.collision_mask,
+                );
+            }
+        }
     }
 
     fn get_collision_layer(&self) -> u32 {
@@ -135,6 +144,15 @@ impl RapierCollisionObject for RapierArea {
 
     fn set_collision_mask(&mut self, mask: u32) {
         self.collision_mask = mask;
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                space.borrow_mut().set_area_collision_group(
+                    handle,
+                    self.collision_layer,
+                    self.collision_mask,
+                );
+            }
+        }
     }
 
     fn get_collision_mask(&self) -> u32 {
@@ -209,7 +227,7 @@ impl RapierArea {
         }
     }
 
-    pub fn set_param(&mut self, param: AreaParameter, value: Variant) {
+    pub fn set_param(&mut self, param: AreaParameter, value: &Variant) {
         match param {
             AreaParameter::AREA_PARAM_GRAVITY_OVERRIDE_MODE => {
                 self.gravity_mode = value.to();

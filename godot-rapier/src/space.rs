@@ -96,6 +96,35 @@ impl RapierSpace {
             &self.event_handler,
         );
     }
+    pub fn set_area_collision_group(
+        &mut self,
+        handle: ColliderHandle,
+        collision_layer: u32,
+        collision_mask: u32,
+    ) {
+        if let Some(area_collider) = self.collider_set.get_mut(handle) {
+            area_collider.set_collision_groups(InteractionGroups::new(
+                Group::from(collision_layer),
+                Group::from(collision_mask),
+            ));
+        }
+    }
+
+    pub fn set_body_collision_group(
+        &mut self,
+        handle: RigidBodyHandle,
+        collision_layer: u32,
+        collision_mask: u32,
+    ) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_collision_groups(InteractionGroups::new(
+                    Group::from(collision_layer),
+                    Group::from(collision_mask),
+                ));
+            }
+        }
+    }
 
     pub fn set_area_transform(&mut self, handle: ColliderHandle, transform: Transform3D) {
         if let Some(area_collider) = self.collider_set.get_mut(handle) {
@@ -179,6 +208,122 @@ impl RapierSpace {
             );
         }
     }
+
+    pub fn set_bounce(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_restitution(value);
+            }
+        }
+    }
+    pub fn set_friction(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_friction(value);
+            }
+        }
+    }
+    pub fn set_inertia_with_com(
+        &mut self,
+        handle: RigidBodyHandle,
+        inertia: Vector3,
+        center_of_mass: Vector3,
+    ) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_mass_properties(MassProperties::new(
+                    godot_vector_to_rapier_point(center_of_mass),
+                    body.mass(),
+                    godot_vector_to_rapier_vector(inertia),
+                ));
+            }
+        }
+    }
+    pub fn set_inertia(&mut self, handle: RigidBodyHandle, inertia: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_mass_properties(MassProperties::new(
+                    *body.center_of_mass(),
+                    body.mass(),
+                    godot_vector_to_rapier_vector(inertia),
+                ));
+            }
+        }
+    }
+    pub fn set_custom_center_of_mass(&mut self, handle: RigidBodyHandle, center_of_mass: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                let mp = collider.mass_properties();
+                collider.set_mass_properties(MassProperties::new(
+                    godot_vector_to_rapier_point(center_of_mass),
+                    body.mass(),
+                    mp.principal_inertia(),
+                ));
+            }
+        }
+    }
+
+    pub fn set_mass(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                collider.set_mass(value);
+            }
+        }
+    }
+    pub fn set_gravity_scale(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_gravity_scale(value, true);
+        }
+    }
+    pub fn set_linear_damp(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_linear_damping(value);
+        }
+    }
+    pub fn set_angular_damp(&mut self, handle: RigidBodyHandle, value: f32) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_angular_damping(value);
+        }
+    }
+    pub fn set_transform(&mut self, handle: RigidBodyHandle, value: Transform3D) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_position(transform_to_isometry(&value), true);
+        }
+    }
+    pub fn set_linear_velocity(&mut self, handle: RigidBodyHandle, value: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_linvel(godot_vector_to_rapier_vector(value), true);
+        }
+    }
+    pub fn set_angular_velocity(&mut self, handle: RigidBodyHandle, value: Vector3) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_angvel(godot_vector_to_rapier_vector(value), true);
+        }
+    }
+    pub fn set_is_sleeping(&mut self, handle: RigidBodyHandle, value: bool) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            if value {
+                body.sleep();
+            } else {
+                body.wake_up(true);
+            }
+        }
+    }
+    pub fn set_can_sleep(&mut self, handle: RigidBodyHandle, value: bool) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            let act = body.activation_mut();
+            *act = if value {
+                if act.is_active() {
+                    RigidBodyActivation::active()
+                } else {
+                    RigidBodyActivation::inactive()
+                }
+            } else {
+                RigidBodyActivation::cannot_sleep()
+            }
+        }
+    }
+
     pub fn get_body(&self, handle: RigidBodyHandle) -> Option<&RigidBody> {
         self.rigid_body_set.get(handle)
     }
@@ -263,7 +408,7 @@ impl RapierSpace {
 
     pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
         let mut area_borrow = area.borrow_mut();
-        let collider = area_borrow.build_collider(true);
+        let collider = area_borrow.build_collider().sensor(true).build();
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
         self.godot_areas.insert(handle, area.clone());
@@ -271,7 +416,7 @@ impl RapierSpace {
 
     pub fn set_default_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
         let mut area_borrow = area.borrow_mut();
-        let collider = area_borrow.build_collider(true);
+        let collider = area_borrow.build_collider().sensor(true).build();
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
         self.default_area = Some(area.clone());
@@ -298,15 +443,34 @@ impl RapierSpace {
     }
 
     pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
-        let mut body_borrow = body.borrow_mut();
-        let collider = body_borrow.build_collider(false);
-        let body_type = body_mode_to_body_type(body_borrow.get_body_mode());
-        let handle = self
-            .rigid_body_set
-            .insert(RigidBodyBuilder::new(body_type).ccd_enabled(body_borrow.is_ccd_enabled()));
+        let mut b = body.borrow_mut();
+        let collider = b
+            .build_collider()
+            .restitution(b.bounce)
+            .friction(b.friction);
+        let collider = if b.has_custom_center_of_mass {
+            collider.mass_properties(MassProperties::new(
+                godot_vector_to_rapier_point(b.custom_center_of_mass),
+                b.mass,
+                godot_vector_to_rapier_vector(b.inertia),
+            ))
+        } else {
+            collider.mass(b.mass)
+        }
+        .build();
+
+        let body_type = body_mode_to_body_type(b.get_body_mode());
+        let rigid_body = RigidBodyBuilder::new(body_type)
+            .ccd_enabled(b.is_ccd_enabled())
+            .linear_damping(b.linear_damp)
+            .angular_damping(b.angular_damp)
+            .gravity_scale(b.gravity_scale)
+            .build();
+
+        let handle = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
-        body_borrow.set_handle(handle);
+        b.set_handle(handle);
         self.godot_bodies.insert(handle, body.clone());
     }
     pub fn remove_space_from_bodies_areas(&self) {

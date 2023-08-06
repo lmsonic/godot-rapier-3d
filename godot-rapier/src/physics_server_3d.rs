@@ -314,7 +314,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         value: Variant,
     ) {
         if let Ok(area) = self.get_area(area) {
-            area.borrow_mut().set_param(param, value);
+            area.borrow_mut().set_param(param, &value);
         }
     }
     fn area_set_transform(&mut self, area: Rid, transform: Transform3D) {
@@ -505,28 +505,37 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
     }
     fn body_get_collision_layer(&self, body: Rid) -> u32 {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_collision_layer();
+        }
         0
     }
     fn body_set_collision_mask(&mut self, body: Rid, mask: u32) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().set_collision_mask(mask);
+        }
     }
     fn body_get_collision_mask(&self, body: Rid) -> u32 {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_collision_mask();
+        }
         0
     }
     fn body_set_collision_priority(&mut self, body: Rid, priority: f32) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().set_collision_priority(priority);
+        }
     }
     fn body_get_collision_priority(&self, body: Rid) -> f32 {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_collision_priority();
+        }
         0.0
     }
     fn body_set_user_flags(&mut self, body: Rid, flags: u32) {
-        //TODO
+        godot_warn!("Body user flags are not supported by Godot Rapier.");
     }
     fn body_get_user_flags(&self, body: Rid) -> u32 {
-        //TODO
         0
     }
     fn body_set_param(
@@ -535,18 +544,24 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         param: godot::engine::physics_server_3d::BodyParameter,
         value: Variant,
     ) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().set_param(param, &value);
+        }
     }
     fn body_get_param(
         &self,
         body: Rid,
         param: godot::engine::physics_server_3d::BodyParameter,
     ) -> Variant {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_param(param);
+        }
         Variant::nil()
     }
     fn body_reset_mass_properties(&mut self, body: Rid) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().reset_mass_properties();
+        }
     }
     fn body_set_state(
         &mut self,
@@ -554,14 +569,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         state: godot::engine::physics_server_3d::BodyState,
         value: Variant,
     ) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().set_state(state, &value);
+        }
     }
     fn body_get_state(
         &self,
         body: Rid,
         state: godot::engine::physics_server_3d::BodyState,
     ) -> Variant {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().get_state(state);
+        }
         Variant::nil()
     }
     fn body_apply_central_impulse(&mut self, body: Rid, impulse: Vector3) {

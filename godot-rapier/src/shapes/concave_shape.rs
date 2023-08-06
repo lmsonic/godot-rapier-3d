@@ -32,8 +32,9 @@ impl RapierConcaveShape {
         }
     }
 
-    pub fn get_compound_convex_shapes(&self) -> SharedShape {
-        SharedShape::convex_decomposition(self.shape.vertices(), self.shape.indices())
+    pub fn get_compound_convex_shapes(&self, scale: Vector<f32>) -> SharedShape {
+        let shape = self.shape.clone().scaled(&scale);
+        SharedShape::convex_decomposition(shape.vertices(), shape.indices())
     }
 }
 
@@ -71,7 +72,7 @@ impl RapierShape for RapierConcaveShape {
         self.rid
     }
 
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         let faces = self
             .shape
             .vertices()
@@ -120,9 +121,9 @@ impl RapierShape for RapierConcaveShape {
         }
     }
 
-    fn get_shape(&self) -> SharedShape {
-        // SharedShape::new(self.shape.clone())
-        self.get_compound_convex_shapes()
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        //SharedShape::new(self.shape.scaled(&scale))
+        self.get_compound_convex_shapes(scale)
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {

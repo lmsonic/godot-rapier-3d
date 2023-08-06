@@ -4,7 +4,7 @@ use godot::{
     engine::{physics_server_3d::BodyMode, physics_server_3d::SpaceParameter},
     prelude::*,
 };
-use rapier3d::prelude::*;
+use rapier3d::{na::Dim, prelude::*};
 
 use crate::{
     area::RapierArea,
@@ -126,17 +126,10 @@ impl RapierSpace {
         }
     }
 
-    pub fn set_area_transform(&mut self, handle: ColliderHandle, transform: Transform3D) {
+    pub fn set_area_isometry(&mut self, handle: ColliderHandle, isometry: Isometry<f32>) {
         if let Some(area_collider) = self.collider_set.get_mut(handle) {
-            area_collider.set_position(transform_to_isometry(&transform));
+            area_collider.set_position(isometry);
         }
-    }
-    pub fn get_area_transform(&self, handle: ColliderHandle) -> Transform3D {
-        self.collider_set
-            .get(handle)
-            .map_or(Transform3D::IDENTITY, |area_collider| {
-                isometry_to_transform(area_collider.position())
-            })
     }
 
     pub fn update_area_shape(&mut self, handle: ColliderHandle, shape: Option<SharedShape>) {
@@ -281,7 +274,8 @@ impl RapierSpace {
     }
     pub fn set_transform(&mut self, handle: RigidBodyHandle, value: Transform3D) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.set_position(transform_to_isometry(&value), true);
+            let (isometry, scale) = transform_to_isometry(&value);
+            body.set_position(isometry, true);
         }
     }
     pub fn set_linear_velocity(&mut self, handle: RigidBodyHandle, value: Vector3) {
@@ -440,34 +434,38 @@ impl RapierSpace {
         let mut b = body.borrow_mut();
         let mut collider = b
             .build_collider()
-            .restitution(b.bounce)
-            .friction(b.friction)
-            .mass(b.mass)
+            .restitution(b.bounce())
+            .friction(b.friction())
+            .mass(b.mass())
             .build();
-        if b.has_custom_center_of_mass || b.inertia != Vector3::ZERO {
+        if b.has_custom_center_of_mass() || b.inertia() != Vector3::ZERO {
             let mp = collider.mass_properties();
-            let center_of_mass = if b.has_custom_center_of_mass {
-                godot_vector_to_rapier_point(b.custom_center_of_mass)
+            let center_of_mass = if b.has_custom_center_of_mass() {
+                godot_vector_to_rapier_point(b.custom_center_of_mass())
             } else {
                 mp.local_com
             };
-            let inertia = if b.inertia == Vector3::ZERO {
+            let inertia = if b.inertia() == Vector3::ZERO {
                 mp.principal_inertia()
             } else {
-                godot_vector_to_rapier_vector(b.inertia)
+                godot_vector_to_rapier_vector(b.inertia())
             };
 
-            collider.set_mass_properties(MassProperties::new(center_of_mass, b.mass, inertia));
+            collider.set_mass_properties(MassProperties::new(center_of_mass, b.mass(), inertia));
         }
 
-        let body_type = body_mode_to_body_type(b.get_body_mode());
+        let body_type = body_mode_to_body_type(b.body_mode());
         let rigid_body = RigidBodyBuilder::new(body_type)
             .ccd_enabled(b.is_ccd_enabled())
-            .linear_damping(b.linear_damp)
-            .angular_damping(b.angular_damp)
-            .gravity_scale(b.gravity_scale)
+            .linear_damping(b.linear_damp())
+            .angular_damping(b.angular_damp())
+            .gravity_scale(b.gravity_scale())
+            .position(b.isometry())
+            .linvel(godot_vector_to_rapier_vector(b.linear_velocity()))
+            .angvel(godot_vector_to_rapier_vector(b.angular_velocity()))
+            .can_sleep(b.can_sleep())
+            .sleeping(b.is_sleeping())
             .build();
-
         let handle = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);

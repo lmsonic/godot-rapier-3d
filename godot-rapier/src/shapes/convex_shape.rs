@@ -35,7 +35,7 @@ impl RapierShape for RapierConvexShape {
         self.rid
     }
 
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         let points: Array<Vector3> = self
             .shape
             .points()
@@ -63,11 +63,21 @@ impl RapierShape for RapierConvexShape {
         }
     }
 
-    fn get_shape(&self) -> SharedShape {
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        let shape = self.shape.clone().scaled(&scale).map_or_else(
+            || {
+                godot_error!("Scaling one of the collision shape axis to 0");
+                self.shape.clone()
+            },
+            |scaled_shape| scaled_shape,
+        );
         if self.margin.is_zero_approx() {
-            SharedShape::new(self.shape.clone())
+            SharedShape::new(shape)
         } else {
-            SharedShape::round_convex_hull(self.shape.points(), self.margin).unwrap()
+            SharedShape::new(RoundConvexPolyhedron {
+                inner_shape: self.shape.clone(),
+                border_radius: self.margin,
+            })
         }
     }
 
@@ -85,7 +95,7 @@ impl RapierShape for RapierConvexShape {
         }
     }
 
-    fn get_margin(&self) -> f32 {
+    fn margin(&self) -> f32 {
         self.margin
     }
 }

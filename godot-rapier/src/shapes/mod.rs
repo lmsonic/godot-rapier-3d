@@ -30,9 +30,9 @@ pub use self::world_boundary_shape::RapierWorldBoundaryShape;
 const DEFAULT_SOLVER_BIAS: f32 = 0.0;
 pub trait RapierShape {
     fn rid(&self) -> Rid;
-    fn get_data(&self) -> Variant;
+    fn data(&self) -> Variant;
     fn set_data(&mut self, data: Variant);
-    fn get_shape(&self) -> SharedShape;
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape;
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>>;
     fn update_owners(&self) {
@@ -49,11 +49,11 @@ pub trait RapierShape {
     fn set_solver_bias(&mut self, bias: f32) {
         godot_warn!("Custom solver bias for shapes is not supported by Godot Rapier.");
     }
-    fn get_solver_bias(&self) -> f32 {
+    fn solver_bias(&self) -> f32 {
         DEFAULT_SOLVER_BIAS
     }
     fn set_margin(&mut self, margin: f32) {}
-    fn get_margin(&self) -> f32 {
+    fn margin(&self) -> f32 {
         0.0
     }
 }
@@ -62,18 +62,27 @@ pub struct RapierShapeInstance {
     pub shape: Rc<RefCell<dyn RapierShape>>,
     pub isometry: Isometry<f32>,
     pub disabled: bool,
+    pub scale: Vector<f32>,
+}
+
+impl RapierShapeInstance {
+    pub fn shared_shape(&self) -> SharedShape {
+        self.shape.borrow().shared_shape(self.scale)
+    }
 }
 
 impl RapierShapeInstance {
     pub fn new(
         shape: Rc<RefCell<dyn RapierShape>>,
         isometry: Isometry<f32>,
+        scale: Vector<f32>,
         disabled: bool,
     ) -> Self {
         Self {
             shape,
             isometry,
             disabled,
+            scale,
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use godot::prelude::{math::ApproxEq, *};
-use rapier3d::prelude::*;
+use rapier3d::{parry::either::Either, prelude::*};
 
 use crate::collision_object::RapierCollisionObject;
 
@@ -23,7 +23,7 @@ impl RapierSphereShape {
 }
 
 impl RapierShape for RapierSphereShape {
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         Variant::from(self.shape.radius)
     }
 
@@ -39,8 +39,14 @@ impl RapierShape for RapierSphereShape {
         };
     }
 
-    fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        self.shape.scaled(&scale, 3).map_or_else(
+            || SharedShape::new(self.shape),
+            |either| match either {
+                Either::Left(ball) => SharedShape::new(ball),
+                Either::Right(convex_poly) => SharedShape::new(convex_poly),
+            },
+        )
     }
 
     fn rid(&self) -> Rid {

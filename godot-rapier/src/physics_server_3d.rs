@@ -127,7 +127,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn shape_get_margin(&self, shape: Rid) -> f32 {
         if let Ok(shape) = self.get_shape(shape) {
-            return shape.borrow().get_margin();
+            return shape.borrow().margin();
         }
         0.0
     }
@@ -139,13 +139,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn shape_get_data(&self, shape: Rid) -> Variant {
         if let Ok(shape) = self.get_shape(shape) {
-            return shape.borrow().get_data();
+            return shape.borrow().data();
         }
         Variant::nil()
     }
     fn shape_get_custom_solver_bias(&self, shape: Rid) -> f32 {
         if let Ok(shape) = self.get_shape(shape) {
-            return shape.borrow().get_solver_bias();
+            return shape.borrow().solver_bias();
         }
         0.0
     }
@@ -270,7 +270,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_shape(&self, area: Rid, shape_idx: i32) -> Rid {
         if let Ok(area) = self.get_area(area) {
-            if let Some(shape_inst) = area.borrow().get_shape_instance(shape_idx as usize) {
+            if let Some(shape_inst) = area.borrow().nth_shape_instance(shape_idx as usize) {
                 return shape_inst.shape.borrow().rid();
             }
         }
@@ -278,7 +278,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_shape_transform(&self, area: Rid, shape_idx: i32) -> Transform3D {
         if let Ok(area) = self.get_area(area) {
-            if let Some(shape_inst) = area.borrow().get_shape_instance(shape_idx as usize) {
+            if let Some(shape_inst) = area.borrow().nth_shape_instance(shape_idx as usize) {
                 return isometry_to_transform(&shape_inst.isometry);
             }
         }
@@ -411,7 +411,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_mode(&self, body: Rid) -> BodyMode {
         if let Ok(body) = self.get_body(body) {
-            return body.borrow().get_body_mode();
+            return body.borrow().body_mode();
         }
         BodyMode::BODY_MODE_STATIC
     }
@@ -451,7 +451,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_shape(&self, body: Rid, shape_idx: i32) -> Rid {
         if let Ok(body) = self.get_body(body) {
-            if let Some(shape_inst) = body.borrow().get_shape_instance(shape_idx as usize) {
+            if let Some(shape_inst) = body.borrow().nth_shape_instance(shape_idx as usize) {
                 return shape_inst.shape.borrow().rid();
             }
         }
@@ -459,7 +459,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_shape_transform(&self, body: Rid, shape_idx: i32) -> Transform3D {
         if let Ok(body) = self.get_body(body) {
-            if let Some(shape_inst) = body.borrow().get_shape_instance(shape_idx as usize) {
+            if let Some(shape_inst) = body.borrow().nth_shape_instance(shape_idx as usize) {
                 return isometry_to_transform(&shape_inst.isometry);
             }
         }
@@ -528,7 +528,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_collision_priority(&self, body: Rid) -> f32 {
         if let Ok(body) = self.get_body(body) {
-            return body.borrow().get_collision_priority();
+            return body.borrow().collision_priority();
         }
         0.0
     }
@@ -635,7 +635,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_constant_force(&self, body: Rid) -> Vector3 {
         if let Ok(body) = self.get_body(body) {
-            return body.borrow().get_constant_force_godot();
+            return body.borrow().constant_force_godot();
         }
         Vector3::ZERO
     }
@@ -646,7 +646,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_get_constant_torque(&self, body: Rid) -> Vector3 {
         if let Ok(body) = self.get_body(body) {
-            return body.borrow().get_constant_torque_godot();
+            return body.borrow().constant_torque_godot();
         }
         Vector3::ZERO
     }

@@ -26,7 +26,7 @@ impl RapierShape for RapierWorldBoundaryShape {
         self.rid
     }
 
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         let normal = Vector3::new(
             self.shape.normal.x,
             self.shape.normal.y,
@@ -57,8 +57,14 @@ impl RapierShape for RapierWorldBoundaryShape {
         }
     }
 
-    fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        self.shape.scaled(&scale).map_or_else(
+            || {
+                godot_error!("WorldBoundaryShape normal degenerated to zero");
+                SharedShape::new(self.shape)
+            },
+            SharedShape::new,
+        )
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {

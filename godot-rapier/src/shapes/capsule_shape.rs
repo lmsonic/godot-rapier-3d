@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use godot::prelude::{math::ApproxEq, *};
-use rapier3d::prelude::*;
+use rapier3d::{parry::either::Either, prelude::*};
 
 use crate::collision_object::RapierCollisionObject;
 
@@ -24,7 +24,7 @@ impl RapierCapsuleShape {
 }
 
 impl RapierShape for RapierCapsuleShape {
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         Variant::from(dict! {"radius": self.shape.radius,"height":self.shape.height()})
     }
 
@@ -53,8 +53,17 @@ impl RapierShape for RapierCapsuleShape {
             Err(e) => godot_error!("{:?}", e),
         };
     }
-    fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        self.shape.scaled(&scale, 3).map_or_else(
+            || {
+                godot_error!("Scaling one of the collision shape axis to 0");
+                SharedShape::new(self.shape)
+            },
+            |scaled_shape| match scaled_shape {
+                Either::Left(capsule) => SharedShape::new(capsule),
+                Either::Right(convex_poly) => SharedShape::new(convex_poly),
+            },
+        )
     }
 
     fn rid(&self) -> Rid {

@@ -23,12 +23,16 @@ pub const fn godot_vector_to_rapier_point(v: Vector3) -> Point<f32> {
     point![v.x, v.y, v.z]
 }
 
-pub fn transform_to_isometry(transform: &Transform3D) -> Isometry<f32> {
+pub fn transform_to_isometry(transform: &Transform3D) -> (Isometry<f32>, Vector<f32>) {
     let translation = Translation3::new(transform.origin.x, transform.origin.y, transform.origin.z);
+    let scale = transform.basis.scale();
     let godot_quat = transform.basis.orthonormalized().to_quat();
     let rapier_quat = RapierQuaternion::new(godot_quat.x, godot_quat.y, godot_quat.z, godot_quat.w);
 
-    Isometry::from_parts(translation, UnitQuaternion::from_quaternion(rapier_quat))
+    (
+        Isometry::from_parts(translation, UnitQuaternion::from_quaternion(rapier_quat)),
+        godot_vector_to_rapier_vector(scale),
+    )
 }
 pub fn isometry_to_transform(isometry: &Isometry<f32>) -> Transform3D {
     let origin = Vector3::new(

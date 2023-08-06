@@ -4,10 +4,11 @@ use godot::{
     engine::physics_server_3d::{AreaParameter, AreaSpaceOverrideMode},
     prelude::*,
 };
-use rapier3d::prelude::*;
+use rapier3d::{na::Dim, prelude::*};
 
 use crate::{
     collision_object::{Handle, RapierCollisionObject},
+    conversions::transform_to_isometry,
     error::RapierError,
     shapes::RapierShapeInstance,
     space::RapierSpace,
@@ -43,6 +44,8 @@ pub struct RapierArea {
     monitorable: bool,
     collision_layer: u32,
     collision_mask: u32,
+
+    pub transform: Transform3D,
 }
 
 impl Default for RapierArea {
@@ -72,6 +75,7 @@ impl Default for RapierArea {
             monitorable: Default::default(),
             collision_layer: 1,
             collision_mask: 1,
+            transform: Transform3D::IDENTITY,
         }
     }
 }
@@ -161,6 +165,14 @@ impl RapierCollisionObject for RapierArea {
     fn generic_handle(&self) -> Handle {
         self.handle().map_or(Handle::NotSet, Handle::AreaHandle)
     }
+
+    fn isometry(&self) -> Isometry<f32> {
+        transform_to_isometry(&self.transform).0
+    }
+
+    fn scale(&self) -> Vector<f32> {
+        transform_to_isometry(&self.transform).1
+    }
 }
 
 #[allow(clippy::default_trait_access)]
@@ -177,20 +189,17 @@ impl RapierArea {
     }
 
     pub fn set_transform(&mut self, transform: Transform3D) {
+        self.transform = transform;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                space.borrow_mut().set_area_transform(handle, transform);
+                let (isometry, scale) = transform_to_isometry(&transform);
+                space.borrow_mut().set_area_isometry(handle, isometry);
             }
         }
     }
 
-    pub fn get_transform(&self) -> Transform3D {
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle() {
-                return space.borrow_mut().get_area_transform(handle);
-            }
-        }
-        Transform3D::IDENTITY
+    pub const fn get_transform(&self) -> Transform3D {
+        self.transform
     }
 
     pub fn get_param(&self, param: AreaParameter) -> Variant {

@@ -31,8 +31,8 @@ pub trait RapierCollisionObject {
         transform: Transform3D,
         disabled: bool,
     ) {
-        let isometry = transform_to_isometry(&transform);
-        let shape_instance = RapierShapeInstance::new(shape, isometry, disabled);
+        let (isometry, scale) = transform_to_isometry(&transform);
+        let shape_instance = RapierShapeInstance::new(shape, isometry, scale, disabled);
         self.shapes_mut().push(shape_instance);
 
         self.update_shapes();
@@ -63,7 +63,7 @@ pub trait RapierCollisionObject {
         }
     }
 
-    fn get_shape_instance(&self, idx: usize) -> Option<&RapierShapeInstance> {
+    fn nth_shape_instance(&self, idx: usize) -> Option<&RapierShapeInstance> {
         if let Some(shape) = self.shapes().get(idx) {
             return Some(shape);
         }
@@ -73,7 +73,9 @@ pub trait RapierCollisionObject {
 
     fn set_shape_transform(&mut self, idx: usize, transform: Transform3D) {
         if let Some(shape) = self.shapes_mut().get_mut(idx) {
-            shape.isometry = transform_to_isometry(&transform);
+            let (isometry, scale) = transform_to_isometry(&transform);
+            shape.isometry = isometry;
+            shape.scale = scale;
             self.update_shapes();
         } else {
             godot_error!("{}", RapierError::ShapeNotInObject(idx, self.rid()));
@@ -113,22 +115,20 @@ pub trait RapierCollisionObject {
             None
         } else if self.shapes().len() == 1 {
             let shape_instance = &self.shapes()[0];
-            Some(shape_instance.shape.borrow().get_shape())
+            Some(shape_instance.shared_shape())
         } else {
             let compound_shapes: Vec<(Isometry<f32>, SharedShape)> = self
                 .shapes()
                 .iter()
                 .filter(|shape_instance| !shape_instance.disabled)
-                .map(|shape_instance| {
-                    (
-                        shape_instance.isometry,
-                        shape_instance.shape.borrow().get_shape(),
-                    )
-                })
+                .map(|shape_instance| (shape_instance.isometry, shape_instance.shared_shape()))
                 .collect();
             Some(SharedShape::new(Compound::new(compound_shapes)))
         }
     }
+
+    fn isometry(&self) -> Isometry<f32>;
+    fn scale(&self) -> Vector<f32>;
 
     fn build_collider(&self) -> ColliderBuilder {
         let collision_groups = InteractionGroups::new(
@@ -145,11 +145,13 @@ pub trait RapierCollisionObject {
             },
             |shared_shape| {
                 if shared_shape.as_compound().is_some() {
-                    ColliderBuilder::new(shared_shape).collision_groups(collision_groups)
+                    ColliderBuilder::new(shared_shape)
+                        .collision_groups(collision_groups)
+                        .position(self.isometry())
                 } else {
                     let shape_instance = &self.shapes()[0];
                     ColliderBuilder::new(shared_shape)
-                        .position(shape_instance.isometry)
+                        .position(self.isometry() * shape_instance.isometry)
                         .enabled(!shape_instance.disabled)
                         .collision_groups(collision_groups)
                 }

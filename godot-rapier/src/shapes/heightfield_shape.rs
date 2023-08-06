@@ -20,7 +20,7 @@ impl RapierShape for RapierHeightmapShape {
         self.rid
     }
 
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         let heights: PackedFloat32Array = self.shape.heights().iter().copied().collect();
         let width = self.shape.ncols() as i32;
         let depth = self.shape.nrows() as i32;
@@ -64,8 +64,8 @@ impl RapierShape for RapierHeightmapShape {
         }
     }
 
-    fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape.clone())
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        SharedShape::new(self.shape.clone().scaled(&scale))
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {

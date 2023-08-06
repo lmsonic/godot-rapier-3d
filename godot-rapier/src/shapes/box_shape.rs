@@ -25,7 +25,7 @@ impl RapierBoxShape {
 }
 
 impl RapierShape for RapierBoxShape {
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         Variant::from(Vector3::new(
             self.shape.half_extents.x,
             self.shape.half_extents.y,
@@ -45,16 +45,14 @@ impl RapierShape for RapierBoxShape {
             Err(err) => godot_error!("{:?}", err),
         };
     }
-    fn get_shape(&self) -> SharedShape {
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
         if self.margin.is_zero_approx() {
-            SharedShape::new(self.shape)
+            SharedShape::new(self.shape.scaled(&scale))
         } else {
-            SharedShape::round_cuboid(
-                self.shape.half_extents.x,
-                self.shape.half_extents.y,
-                self.shape.half_extents.z,
-                self.margin,
-            )
+            SharedShape::new(RoundCuboid {
+                inner_shape: self.shape.scaled(&scale),
+                border_radius: self.margin,
+            })
         }
     }
 
@@ -75,7 +73,7 @@ impl RapierShape for RapierBoxShape {
         }
     }
 
-    fn get_margin(&self) -> f32 {
+    fn margin(&self) -> f32 {
         self.margin
     }
 }

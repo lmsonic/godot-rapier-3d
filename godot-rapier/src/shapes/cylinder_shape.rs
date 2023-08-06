@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use godot::prelude::{math::ApproxEq, *};
-use rapier3d::prelude::*;
+use rapier3d::{parry::either::Either, prelude::*};
 
 use crate::collision_object::RapierCollisionObject;
 
@@ -26,7 +26,7 @@ impl RapierCylinderShape {
 }
 
 impl RapierShape for RapierCylinderShape {
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         Variant::from(dict! {"radius": self.shape.radius,"height":self.shape.half_height*2.0})
     }
 
@@ -55,12 +55,42 @@ impl RapierShape for RapierCylinderShape {
             Err(e) => godot_error!("{:?}", e),
         };
     }
-    fn get_shape(&self) -> SharedShape {
-        if self.margin.is_zero_approx() {
-            SharedShape::new(self.shape)
-        } else {
-            SharedShape::round_cylinder(self.shape.half_height, self.shape.radius, self.margin)
-        }
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        self.shape.scaled(&scale, 3).map_or_else(
+            || {
+                godot_error!("Scaling one of the collision shape axis to 0");
+                if self.margin.is_zero_approx() {
+                    SharedShape::new(self.shape)
+                } else {
+                    SharedShape::new(RoundCylinder {
+                        inner_shape: self.shape,
+                        border_radius: self.margin,
+                    })
+                }
+            },
+            |scaled_shape| match scaled_shape {
+                Either::Left(capsule) => {
+                    if self.margin().is_zero_approx() {
+                        SharedShape::new(capsule)
+                    } else {
+                        SharedShape::new(RoundCylinder {
+                            inner_shape: capsule,
+                            border_radius: self.margin,
+                        })
+                    }
+                }
+                Either::Right(convex_poly) => {
+                    if self.margin().is_zero_approx() {
+                        SharedShape::new(convex_poly)
+                    } else {
+                        SharedShape::new(RoundConvexPolyhedron {
+                            inner_shape: convex_poly,
+                            border_radius: self.margin,
+                        })
+                    }
+                }
+            },
+        )
     }
 
     fn rid(&self) -> Rid {
@@ -79,7 +109,7 @@ impl RapierShape for RapierCylinderShape {
         }
     }
 
-    fn get_margin(&self) -> f32 {
+    fn margin(&self) -> f32 {
         self.margin
     }
 }

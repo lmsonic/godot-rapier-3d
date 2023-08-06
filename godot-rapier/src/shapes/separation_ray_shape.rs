@@ -28,7 +28,7 @@ impl RapierShape for RapierSeparationRayShape {
         self.rid
     }
 
-    fn get_data(&self) -> Variant {
+    fn data(&self) -> Variant {
         let length = (self.shape.b - self.shape.a).norm();
         Variant::from(dict! {"length":length , "slide_on_slope" :false})
     }
@@ -61,8 +61,8 @@ impl RapierShape for RapierSeparationRayShape {
         }
     }
 
-    fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape)
+    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
+        SharedShape::new(self.shape.scaled(&scale))
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {

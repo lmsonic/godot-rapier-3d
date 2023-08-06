@@ -16,7 +16,7 @@ use crate::{
     collision_object::{Handle, RapierCollisionObject},
     conversions::{
         godot_vector_to_rapier_point, godot_vector_to_rapier_vector, isometry_to_transform,
-        rapier_point_to_godot_vector, rapier_vector_to_godot_vector,
+        rapier_point_to_godot_vector, rapier_vector_to_godot_vector, transform_to_isometry,
     },
     error::RapierError,
     shapes::RapierShapeInstance,
@@ -38,20 +38,27 @@ pub struct RapierBody {
     collision_layer: u32,
     collision_mask: u32,
     collision_priority: f32,
-    pub bounce: f32,
-    pub friction: f32,
-    pub mass: f32,
-    pub inertia: Vector3,
-    pub custom_center_of_mass: Vector3,
-    pub has_custom_center_of_mass: bool,
-    pub gravity_scale: f32,
-    pub linear_damp_mode: DampMode,
-    pub angular_damp_mode: DampMode,
-    pub linear_damp: f32,
-    pub angular_damp: f32,
+
+    bounce: f32,
+    friction: f32,
+    mass: f32,
+    inertia: Vector3,
+    custom_center_of_mass: Vector3,
+    has_custom_center_of_mass: bool,
+    gravity_scale: f32,
+    linear_damp_mode: DampMode,
+    angular_damp_mode: DampMode,
+    linear_damp: f32,
+    angular_damp: f32,
 
     gravity: Vector3,
     areas: Vec<Rc<RefCell<RapierArea>>>,
+
+    linear_velocity: Vector3,
+    angular_velocity: Vector3,
+    transform: Transform3D,
+    is_sleeping: bool,
+    can_sleep: bool,
 }
 
 impl Default for RapierBody {
@@ -83,6 +90,11 @@ impl Default for RapierBody {
             angular_damp: Default::default(),
             gravity: Vector3::default(),
             areas: Default::default(),
+            linear_velocity: Vector3::default(),
+            angular_velocity: Vector3::default(),
+            transform: Transform3D::IDENTITY,
+            is_sleeping: false,
+            can_sleep: true,
         }
     }
 }
@@ -178,6 +190,14 @@ impl RapierCollisionObject for RapierBody {
     fn generic_handle(&self) -> Handle {
         self.handle().map_or(Handle::NotSet, Handle::BodyHandle)
     }
+
+    fn isometry(&self) -> Isometry<f32> {
+        transform_to_isometry(&self.transform).0
+    }
+
+    fn scale(&self) -> Vector<f32> {
+        transform_to_isometry(&self.transform).1
+    }
 }
 
 impl RapierBody {
@@ -210,7 +230,7 @@ impl RapierBody {
         self.ccd_enabled
     }
 
-    pub const fn get_body_mode(&self) -> BodyMode {
+    pub const fn body_mode(&self) -> BodyMode {
         self.body_mode
     }
 
@@ -301,16 +321,16 @@ impl RapierBody {
         self.constant_torque = godot_vector_to_rapier_vector(torque);
     }
 
-    pub fn get_constant_force_godot(&self) -> Vector3 {
+    pub fn constant_force_godot(&self) -> Vector3 {
         rapier_vector_to_godot_vector(self.constant_force)
     }
-    pub fn get_constant_torque_godot(&self) -> Vector3 {
+    pub fn constant_torque_godot(&self) -> Vector3 {
         rapier_vector_to_godot_vector(self.constant_torque)
     }
-    pub const fn get_constant_force(&self) -> Vector<f32> {
+    pub const fn constant_force(&self) -> Vector<f32> {
         self.constant_force
     }
-    pub const fn get_constant_torque(&self) -> Vector<f32> {
+    pub const fn constant_torque(&self) -> Vector<f32> {
         self.constant_torque
     }
 
@@ -321,7 +341,7 @@ impl RapierBody {
         self.handle
     }
 
-    pub const fn get_collision_priority(&self) -> f32 {
+    pub const fn collision_priority(&self) -> f32 {
         self.collision_priority
     }
 
@@ -390,9 +410,9 @@ impl RapierBody {
     }
     pub fn get_state(&self, state: BodyState) -> Variant {
         match state {
-            BodyState::BODY_STATE_TRANSFORM => Variant::from(self.get_transform()),
-            BodyState::BODY_STATE_LINEAR_VELOCITY => Variant::from(self.get_linear_velocity()),
-            BodyState::BODY_STATE_ANGULAR_VELOCITY => Variant::from(self.get_angular_velocity()),
+            BodyState::BODY_STATE_TRANSFORM => Variant::from(self.transform()),
+            BodyState::BODY_STATE_LINEAR_VELOCITY => Variant::from(self.linear_velocity()),
+            BodyState::BODY_STATE_ANGULAR_VELOCITY => Variant::from(self.angular_velocity()),
             BodyState::BODY_STATE_SLEEPING => Variant::from(self.is_sleeping()),
             BodyState::BODY_STATE_CAN_SLEEP => Variant::from(self.can_sleep()),
             _ => Variant::nil(),
@@ -423,7 +443,7 @@ impl RapierBody {
             if let Some(handle) = self.handle() {
                 space
                     .borrow_mut()
-                    .set_mass(handle, mass, !self.has_custom_center_of_mass);
+                    .set_mass(handle, mass, self.has_custom_center_of_mass);
             }
         }
     }
@@ -436,7 +456,7 @@ impl RapierBody {
                 if inertia == Vector3::ZERO {
                     space
                         .borrow_mut()
-                        .set_mass(handle, self.mass, !self.has_custom_center_of_mass);
+                        .set_mass(handle, self.mass, self.has_custom_center_of_mass);
                 } else {
                     space.borrow_mut().set_inertia(handle, inertia);
                 }
@@ -494,20 +514,83 @@ impl RapierBody {
     }
 
     pub fn center_of_mass(&self) -> Vector3 {
-        if self.has_custom_center_of_mass {
-            return self.custom_center_of_mass;
-        } else if let Some(space) = self.space() {
+        if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 if let Some(body) = space.borrow().get_body(handle) {
                     return rapier_point_to_godot_vector(*body.center_of_mass());
                 }
             }
         }
-
         Vector3::ZERO
     }
+    pub fn local_center_of_mass(&self) -> Vector3 {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    let local_com = body.mass_properties().local_mprops.local_com;
+                    return rapier_point_to_godot_vector(local_com);
+                }
+            }
+        }
+        Vector3::ZERO
+    }
+    pub fn principal_inertia_axes(&self) -> Basis {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    let inertia = body.mass_properties().local_mprops.principal_inertia();
+                    return self.transform().basis
+                        * Basis::from_diagonal(inertia.x, inertia.y, inertia.z);
+                }
+            }
+        }
+        self.transform().basis
+            * Basis::from_diagonal(self.inertia.x, self.inertia.y, self.inertia.z)
+    }
 
-    fn set_transform(&self, value: Transform3D) {
+    pub fn inverse_mass(&self) -> f32 {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    return body.mass_properties().local_mprops.inv_mass;
+                }
+            }
+        }
+        1.0 / self.mass
+    }
+
+    pub fn inverse_inertia(&self) -> Vector3 {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    let inv_inertia = body
+                        .mass_properties()
+                        .local_mprops
+                        .inv_principal_inertia_sqrt;
+                    return Vector3::new(inv_inertia.x, inv_inertia.y, inv_inertia.z);
+                }
+            }
+        }
+        self.inertia.inverse()
+    }
+    pub fn inverse_inertia_tensor(&self) -> Basis {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    let inv_inertia = body
+                        .mass_properties()
+                        .local_mprops
+                        .inv_principal_inertia_sqrt;
+                    return Basis::from_diagonal(inv_inertia.x, inv_inertia.y, inv_inertia.z);
+                }
+            }
+        }
+        let inv = self.inertia.inverse();
+        Basis::from_diagonal(inv.x, inv.y, inv.z)
+    }
+
+    pub fn set_transform(&mut self, value: Transform3D) {
+        self.transform = value;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_transform(handle, value);
@@ -515,7 +598,8 @@ impl RapierBody {
         }
     }
 
-    fn set_linear_velocity(&self, value: Vector3) {
+    pub fn set_linear_velocity(&mut self, value: Vector3) {
+        self.linear_velocity = value;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_linear_velocity(handle, value);
@@ -523,7 +607,8 @@ impl RapierBody {
         }
     }
 
-    fn set_angular_velocity(&self, value: Vector3) {
+    pub fn set_angular_velocity(&mut self, value: Vector3) {
+        self.angular_velocity = value;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_angular_velocity(handle, value);
@@ -531,7 +616,8 @@ impl RapierBody {
         }
     }
 
-    fn set_is_sleeping(&self, value: bool) {
+    pub fn set_is_sleeping(&mut self, value: bool) {
+        self.is_sleeping = value;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_is_sleeping(handle, value);
@@ -539,7 +625,8 @@ impl RapierBody {
         }
     }
 
-    fn set_can_sleep(&self, value: bool) {
+    pub fn set_can_sleep(&mut self, value: bool) {
+        self.can_sleep = value;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_can_sleep(handle, value);
@@ -547,7 +634,7 @@ impl RapierBody {
         }
     }
 
-    fn get_transform(&self) -> Transform3D {
+    pub fn transform(&self) -> Transform3D {
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 if let Some(body) = space.borrow().get_body(handle) {
@@ -555,10 +642,10 @@ impl RapierBody {
                 }
             }
         }
-        Transform3D::IDENTITY
+        self.transform
     }
 
-    fn get_linear_velocity(&self) -> Vector3 {
+    pub fn linear_velocity(&self) -> Vector3 {
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 if let Some(body) = space.borrow().get_body(handle) {
@@ -566,9 +653,9 @@ impl RapierBody {
                 }
             }
         }
-        Vector3::ZERO
+        self.linear_velocity
     }
-    fn get_angular_velocity(&self) -> Vector3 {
+    pub fn angular_velocity(&self) -> Vector3 {
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 if let Some(body) = space.borrow().get_body(handle) {
@@ -576,9 +663,9 @@ impl RapierBody {
                 }
             }
         }
-        Vector3::ZERO
+        self.angular_velocity
     }
-    fn is_sleeping(&self) -> bool {
+    pub fn is_sleeping(&self) -> bool {
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 if let Some(body) = space.borrow().get_body(handle) {
@@ -586,17 +673,10 @@ impl RapierBody {
                 }
             }
         }
-        false
+        self.is_sleeping
     }
-    fn can_sleep(&self) -> bool {
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle() {
-                if let Some(body) = space.borrow().get_body(handle) {
-                    return *body.activation() != RigidBodyActivation::cannot_sleep();
-                }
-            }
-        }
-        true
+    pub const fn can_sleep(&self) -> bool {
+        self.can_sleep
     }
 
     pub fn pre_step(&mut self, step: f32) {
@@ -628,5 +708,49 @@ impl RapierBody {
 
     fn move_kinematic(&mut self, step: f32) {
         // TODO
+    }
+
+    pub const fn bounce(&self) -> f32 {
+        self.bounce
+    }
+
+    pub const fn friction(&self) -> f32 {
+        self.friction
+    }
+
+    pub const fn mass(&self) -> f32 {
+        self.mass
+    }
+
+    pub const fn inertia(&self) -> Vector3 {
+        self.inertia
+    }
+
+    pub const fn custom_center_of_mass(&self) -> Vector3 {
+        self.custom_center_of_mass
+    }
+
+    pub const fn has_custom_center_of_mass(&self) -> bool {
+        self.has_custom_center_of_mass
+    }
+
+    pub const fn gravity_scale(&self) -> f32 {
+        self.gravity_scale
+    }
+
+    pub const fn linear_damp_mode(&self) -> DampMode {
+        self.linear_damp_mode
+    }
+
+    pub const fn angular_damp_mode(&self) -> DampMode {
+        self.angular_damp_mode
+    }
+
+    pub const fn linear_damp(&self) -> f32 {
+        self.linear_damp
+    }
+
+    pub const fn angular_damp(&self) -> f32 {
+        self.angular_damp
     }
 }

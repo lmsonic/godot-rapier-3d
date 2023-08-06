@@ -36,121 +36,89 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
         0.0
     }
     fn get_center_of_mass(&self) -> Vector3 {
-        // TODO
-        Vector3::ZERO
+        self.body.borrow().center_of_mass()
     }
     fn get_center_of_mass_local(&self) -> Vector3 {
-        // TODO
-        Vector3::ZERO
+        self.body.borrow().local_center_of_mass()
     }
     fn get_principal_inertia_axes(&self) -> Basis {
-        // TODO
-        Basis::IDENTITY
+        self.body.borrow().principal_inertia_axes()
     }
     fn get_inverse_mass(&self) -> f32 {
-        // TODO
-        0.0
+        self.body.borrow().inverse_mass()
     }
     fn get_inverse_inertia(&self) -> Vector3 {
-        // TODO
-        Vector3::ZERO
+        self.body.borrow().inverse_inertia()
     }
     fn get_inverse_inertia_tensor(&self) -> Basis {
-        // TODO
-        Basis::IDENTITY
+        self.body.borrow().inverse_inertia_tensor()
     }
     fn set_linear_velocity(&mut self, velocity: Vector3) {
-        if let Some(space) = self.body.borrow().space() {
-            if let Some(handle) = self.body.borrow().handle() {
-                space.borrow_mut().set_linear_velocity(handle, velocity);
-            }
-        }
+        self.body.borrow_mut().set_linear_velocity(velocity);
     }
     fn get_linear_velocity(&self) -> Vector3 {
-        if let Some(space) = self.body.borrow().space() {
-            if let Some(handle) = self.body.borrow().handle() {
-                if let Some(body) = space.borrow().get_body(handle) {
-                    return rapier_vector_to_godot_vector(*body.linvel());
-                }
-            }
-        }
-        Vector3::ZERO
+        self.body.borrow().linear_velocity()
     }
     fn set_angular_velocity(&mut self, velocity: Vector3) {
-        if let Some(space) = self.body.borrow().space() {
-            if let Some(handle) = self.body.borrow().handle() {
-                space.borrow_mut().set_angular_velocity(handle, velocity);
-            }
-        }
+        self.body.borrow_mut().set_angular_velocity(velocity);
     }
     fn get_angular_velocity(&self) -> Vector3 {
-        if let Some(space) = self.body.borrow().space() {
-            if let Some(handle) = self.body.borrow().handle() {
-                if let Some(body) = space.borrow().get_body(handle) {
-                    return rapier_vector_to_godot_vector(*body.angvel());
-                }
-            }
-        }
-        Vector3::ZERO
+        self.body.borrow().angular_velocity()
     }
     fn set_transform(&mut self, transform: Transform3D) {
-        // TODO
+        self.body.borrow_mut().set_transform(transform);
     }
     fn get_transform(&self) -> Transform3D {
-        // TODO
-        Transform3D::IDENTITY
+        self.body.borrow().transform()
     }
     fn get_velocity_at_local_position(&self, local_position: Vector3) -> Vector3 {
         // TODO
         Vector3::ZERO
     }
     fn apply_central_impulse(&mut self, impulse: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_central_impulse(impulse);
     }
     fn apply_impulse(&mut self, impulse: Vector3, position: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_impulse(impulse, position);
     }
     fn apply_torque_impulse(&mut self, impulse: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_torque_impulse(impulse);
     }
     fn apply_central_force(&mut self, force: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_central_force(force);
     }
     fn apply_force(&mut self, force: Vector3, position: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_force(force, position);
     }
     fn apply_torque(&mut self, torque: Vector3) {
-        // TODO
+        self.body.borrow_mut().apply_torque(torque);
     }
     fn add_constant_central_force(&mut self, force: Vector3) {
-        // TODO
+        self.body.borrow_mut().add_constant_central_force(force);
     }
     fn add_constant_force(&mut self, force: Vector3, position: Vector3) {
-        // TODO
+        self.body.borrow_mut().add_constant_force(force, position);
     }
     fn add_constant_torque(&mut self, torque: Vector3) {
-        // TODO
+        self.body.borrow_mut().add_constant_torque(torque);
     }
     fn set_constant_force(&mut self, force: Vector3) {
-        // TODO
+        self.body.borrow_mut().set_constant_force(force);
     }
     fn get_constant_force(&self) -> Vector3 {
-        // TODO
-        Vector3::ZERO
+        self.body.borrow().constant_force_godot()
     }
     fn set_constant_torque(&mut self, torque: Vector3) {
-        // TODO
+        self.body.borrow_mut().set_constant_torque(torque);
     }
     fn get_constant_torque(&self) -> Vector3 {
-        // TODO
-        Vector3::ZERO
+        self.body.borrow().constant_torque_godot()
     }
     fn set_sleep_state(&mut self, enabled: bool) {
-        // TODO
+        self.body.borrow_mut().set_is_sleeping(enabled);
     }
     fn is_sleeping(&self) -> bool {
-        // TODO
-        false
+        self.body.borrow().is_sleeping()
     }
     fn get_contact_count(&self) -> i32 {
         // TODO

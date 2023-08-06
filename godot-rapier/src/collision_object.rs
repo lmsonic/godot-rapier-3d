@@ -108,7 +108,7 @@ pub trait RapierCollisionObject {
                 Handle::BodyHandle(handle) => space
                     .borrow_mut()
                     .update_body_shape(handle, self.build_shared_shape()),
-                Handle::NotSet => todo!(),
+                Handle::NotSet => {}
             }
         }
     }

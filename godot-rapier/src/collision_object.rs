@@ -44,10 +44,10 @@ pub trait RapierCollisionObject {
         });
         self.update_shapes();
     }
-    fn remove_nth_shape(&mut self, idx: usize) {
+    fn remove_nth_shape(&mut self, idx: usize) -> RapierShapeInstance {
         let shape_inst = self.shapes_mut().swap_remove(idx);
-        shape_inst.shape.borrow_mut().remove_owner(self.rid());
         self.update_shapes();
+        shape_inst
     }
 
     fn clear_shapes(&mut self) {

@@ -151,8 +151,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn space_create(&mut self) -> Rid {
         let space_rid = make_rid();
-        let space = RapierSpace::new(space_rid);
-        let space = Rc::new(RefCell::new(space));
+        let space = Rc::new(RefCell::new(RapierSpace::new(space_rid)));
         let default_area_rid = self.area_create();
         if let Ok(default_area) = self.get_area(default_area_rid) {
             default_area.borrow_mut().set_space(space.clone());
@@ -287,9 +286,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         Transform3D::IDENTITY
     }
-    fn area_remove_shape(&mut self, area: Rid, shape_idx: i32) {
-        if let Ok(area) = self.get_area(area) {
-            area.borrow_mut().remove_nth_shape(shape_idx as usize);
+    fn area_remove_shape(&mut self, area_id: Rid, shape_idx: i32) {
+        if let Ok(area) = self.get_area(area_id) {
+            let shape_inst = area.borrow_mut().remove_nth_shape(shape_idx as usize);
+            shape_inst.shape.borrow_mut().remove_owner(area_id);
         }
     }
     fn area_clear_shapes(&mut self, area: Rid) {
@@ -471,9 +471,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         Transform3D::IDENTITY
     }
-    fn body_remove_shape(&mut self, body: Rid, shape_idx: i32) {
-        if let Ok(body) = self.get_body(body) {
-            body.borrow_mut().remove_nth_shape(shape_idx as usize);
+    fn body_remove_shape(&mut self, body_id: Rid, shape_idx: i32) {
+        if let Ok(body) = self.get_body(body_id) {
+            let shape_inst = body.borrow_mut().remove_nth_shape(shape_idx as usize);
+            shape_inst.shape.borrow_mut().remove_owner(body_id);
         }
     }
     fn body_clear_shapes(&mut self, body: Rid) {

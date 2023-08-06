@@ -428,6 +428,7 @@ impl RapierSpace {
             &mut self.multibody_joint_set,
             true,
         );
+        self.bodies.remove(&handle);
     }
 
     pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
@@ -472,7 +473,7 @@ impl RapierSpace {
         b.set_handle(handle);
         self.bodies.insert(handle, body.clone());
     }
-    pub fn remove_space_from_bodies_areas(&self) {
+    pub fn remove_space_from_bodies_areas(&mut self) {
         for area in self.areas.values() {
             area.borrow_mut().remove_space();
         }

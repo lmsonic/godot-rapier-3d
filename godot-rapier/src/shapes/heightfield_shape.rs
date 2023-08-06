@@ -75,6 +75,9 @@ impl RapierShape for RapierHeightmapShape {
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
     }
+    fn owners_mut(&mut self) -> &mut Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &mut self.owners
+    }
 }
 
 impl RapierHeightmapShape {

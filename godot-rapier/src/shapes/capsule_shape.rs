@@ -72,6 +72,9 @@ impl RapierShape for RapierCapsuleShape {
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
     }
+    fn owners_mut(&mut self) -> &mut Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &mut self.owners
+    }
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
         godot::engine::physics_server_3d::ShapeType::SHAPE_CAPSULE
     }

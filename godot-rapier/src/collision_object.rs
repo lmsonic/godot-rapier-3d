@@ -34,28 +34,34 @@ pub trait RapierCollisionObject {
         let (isometry, scale) = transform_to_isometry(&transform);
         let shape_instance = RapierShapeInstance::new(shape, isometry, scale, disabled);
         self.shapes_mut().push(shape_instance);
-
         self.update_shapes();
     }
     fn remove_shape_rid(&mut self, shape_rid: Rid) {
-        self.shapes_mut()
-            .retain(|s| s.shape.borrow().rid() != shape_rid);
-
+        let rid = self.rid();
+        self.shapes_mut().retain(|s| {
+            s.shape.borrow_mut().remove_owner(rid);
+            s.shape.borrow().rid() != shape_rid
+        });
         self.update_shapes();
     }
     fn remove_nth_shape(&mut self, idx: usize) {
-        self.shapes_mut().swap_remove(idx);
-
+        let shape_inst = self.shapes_mut().swap_remove(idx);
+        shape_inst.shape.borrow_mut().remove_owner(self.rid());
         self.update_shapes();
     }
 
     fn clear_shapes(&mut self) {
+        for shape in self.shapes() {
+            shape.shape.borrow_mut().remove_owner(self.rid());
+        }
         self.shapes_mut().clear();
         self.update_shapes();
     }
 
     fn set_shape(&mut self, idx: usize, s: Rc<RefCell<dyn RapierShape>>) {
+        let rid = self.rid();
         if let Some(shape) = self.shapes_mut().get_mut(idx) {
+            shape.shape.borrow_mut().remove_owner(rid);
             shape.shape = s.clone();
             self.update_shapes();
         } else {
@@ -108,7 +114,6 @@ pub trait RapierCollisionObject {
     }
     fn set_instance_id(&mut self, id: u64);
     fn instance_id(&self) -> Option<u64>;
-    fn remove_from_space(&self);
 
     fn build_shared_shape(&self) -> Option<SharedShape> {
         if self.shapes().is_empty() {

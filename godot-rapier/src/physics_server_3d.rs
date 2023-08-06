@@ -218,8 +218,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_set_space(&mut self, area: Rid, space: Rid) {
         if let Ok(area) = self.get_area(area) {
             if let Ok(space) = self.get_space(space) {
-                area.borrow_mut().set_space(space.clone());
+                area.borrow_mut().remove_space();
                 space.borrow_mut().add_area(area);
+                area.borrow_mut().set_space(space.clone());
             }
         }
     }
@@ -239,6 +240,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if let Ok(shape) = self.get_shape(shape) {
                 area.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
+                shape.borrow_mut().add_owner(area.clone());
             }
         }
     }
@@ -247,6 +249,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if let Ok(shape) = self.get_shape(shape) {
                 area.borrow_mut()
                     .set_shape(shape_idx as usize, shape.clone());
+                shape.borrow_mut().add_owner(area.clone());
             }
         }
     }
@@ -388,8 +391,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_set_space(&mut self, body: Rid, space: Rid) {
         if let Ok(body) = self.get_body(body) {
             if let Ok(space) = self.get_space(space) {
-                body.borrow_mut().set_space(space.clone());
+                body.borrow_mut().remove_space();
                 space.borrow_mut().add_body(body);
+                body.borrow_mut().set_space(space.clone());
             }
         }
     }
@@ -420,6 +424,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if let Ok(shape) = self.get_shape(shape) {
                 body.borrow_mut()
                     .add_shape(shape.clone(), transform, disabled);
+                shape.borrow_mut().add_owner(body.clone());
             }
         }
     }
@@ -428,6 +433,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if let Ok(shape) = self.get_shape(shape) {
                 body.borrow_mut()
                     .set_shape(shape_idx as usize, shape.clone());
+                shape.borrow_mut().add_owner(body.clone());
             }
         }
     }
@@ -1100,11 +1106,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn free_rid(&mut self, rid: Rid) {
         if let Some(shape) = self.shapes.remove(&rid) {
-            shape.borrow_mut().remove_from_owners();
+            shape.borrow_mut().clear_owners();
         } else if let Some(body) = self.bodies.remove(&rid) {
-            body.borrow_mut().remove_from_space();
+            body.borrow_mut().remove_space();
         } else if let Some(area) = self.areas.remove(&rid) {
-            area.borrow_mut().remove_from_space();
+            area.borrow_mut().remove_space();
         } else if let Some(space) = self.spaces.remove(&rid) {
             space.borrow_mut().remove_space_from_bodies_areas();
             self.active_spaces.remove(&rid);

@@ -88,6 +88,9 @@ impl RapierShape for RapierConvexShape {
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
         &self.owners
     }
+    fn owners_mut(&mut self) -> &mut Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
+        &mut self.owners
+    }
     fn set_margin(&mut self, margin: f32) {
         if margin.approx_eq(&self.margin) {
             self.margin = margin;

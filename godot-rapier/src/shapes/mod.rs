@@ -35,15 +35,25 @@ pub trait RapierShape {
     fn shared_shape(&self, scale: Vector<f32>) -> SharedShape;
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType;
     fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>>;
+    fn owners_mut(&mut self) -> &mut Vec<Rc<RefCell<dyn RapierCollisionObject>>>;
+
     fn update_owners(&self) {
         for owner in self.owners() {
             owner.borrow_mut().update_shapes();
         }
     }
-    fn remove_from_owners(&self) {
+    fn add_owner(&mut self, owner: Rc<RefCell<dyn RapierCollisionObject>>) {
+        self.owners_mut().push(owner);
+    }
+
+    fn remove_owner(&mut self, owner_id: Rid) {
+        self.owners_mut().retain(|o| o.borrow().rid() == owner_id);
+    }
+    fn clear_owners(&mut self) {
         for owner in self.owners() {
             owner.borrow_mut().remove_shape_rid(self.rid());
         }
+        self.owners_mut().clear();
     }
 
     fn set_solver_bias(&mut self, bias: f32) {

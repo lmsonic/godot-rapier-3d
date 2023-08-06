@@ -82,7 +82,6 @@ impl Default for RapierArea {
 
 impl RapierCollisionObject for RapierArea {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
-        self.remove_from_space();
         self.space = Some(space);
     }
 
@@ -115,15 +114,12 @@ impl RapierCollisionObject for RapierArea {
         self.rid
     }
 
-    fn remove_from_space(&self) {
+    fn remove_space(&mut self) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle {
                 space.borrow_mut().remove_area(handle);
             }
         }
-    }
-
-    fn remove_space(&mut self) {
         self.space = None;
         self.handle = None;
     }

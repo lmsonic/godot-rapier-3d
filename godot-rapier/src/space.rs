@@ -18,8 +18,8 @@ use crate::{
 
 pub struct RapierSpace {
     rid: Rid,
-    godot_bodies: HashMap<RigidBodyHandle, Rc<RefCell<RapierBody>>>,
-    godot_areas: HashMap<ColliderHandle, Rc<RefCell<RapierArea>>>,
+    bodies: HashMap<RigidBodyHandle, Rc<RefCell<RapierBody>>>,
+    areas: HashMap<ColliderHandle, Rc<RefCell<RapierArea>>>,
     default_area: Option<Rc<RefCell<RapierArea>>>,
 
     rigid_body_set: RigidBodySet,
@@ -49,8 +49,8 @@ impl RapierSpace {
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            godot_bodies: HashMap::default(),
-            godot_areas: HashMap::default(),
+            bodies: HashMap::default(),
+            areas: HashMap::default(),
             default_area: None,
             rigid_body_set: RigidBodySet::default(),
             collider_set: ColliderSet::default(),
@@ -72,14 +72,14 @@ impl RapierSpace {
         // TODO
     }
 
-    pub fn step(&mut self) {
-        for (handle, body) in self.rigid_body_set.iter_mut() {
-            if let Some(godot_body) = self.godot_bodies.get(&handle) {
-                body.add_force(godot_body.borrow().get_constant_force(), true);
-                body.add_torque(godot_body.borrow().get_constant_torque(), true);
-            }
+    fn pre_step(&self) {
+        for body in self.bodies.values() {
+            body.borrow_mut().pre_step(self.integration_parameters.dt);
         }
+    }
 
+    pub fn step(&mut self) {
+        self.pre_step();
         self.physics_pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -223,27 +223,12 @@ impl RapierSpace {
             }
         }
     }
-    pub fn set_inertia_with_com(
-        &mut self,
-        handle: RigidBodyHandle,
-        inertia: Vector3,
-        center_of_mass: Vector3,
-    ) {
-        if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
-                collider.set_mass_properties(MassProperties::new(
-                    godot_vector_to_rapier_point(center_of_mass),
-                    body.mass(),
-                    godot_vector_to_rapier_vector(inertia),
-                ));
-            }
-        }
-    }
     pub fn set_inertia(&mut self, handle: RigidBodyHandle, inertia: Vector3) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
             if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
+                let mp = collider.mass_properties();
                 collider.set_mass_properties(MassProperties::new(
-                    *body.center_of_mass(),
+                    mp.local_com,
                     body.mass(),
                     godot_vector_to_rapier_vector(inertia),
                 ));
@@ -263,10 +248,19 @@ impl RapierSpace {
         }
     }
 
-    pub fn set_mass(&mut self, handle: RigidBodyHandle, value: f32) {
+    pub fn set_mass(&mut self, handle: RigidBodyHandle, value: f32, custom_mass_props: bool) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
             if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
-                collider.set_mass(value);
+                if custom_mass_props {
+                    let mp = collider.mass_properties();
+                    collider.set_mass_properties(MassProperties::new(
+                        mp.local_com,
+                        value,
+                        mp.principal_inertia(),
+                    ));
+                } else {
+                    collider.set_mass(value);
+                }
             }
         }
     }
@@ -411,7 +405,7 @@ impl RapierSpace {
         let collider = area_borrow.build_collider().sensor(true).build();
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
-        self.godot_areas.insert(handle, area.clone());
+        self.areas.insert(handle, area.clone());
     }
 
     pub fn set_default_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
@@ -444,20 +438,27 @@ impl RapierSpace {
 
     pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
         let mut b = body.borrow_mut();
-        let collider = b
+        let mut collider = b
             .build_collider()
             .restitution(b.bounce)
-            .friction(b.friction);
-        let collider = if b.has_custom_center_of_mass {
-            collider.mass_properties(MassProperties::new(
-                godot_vector_to_rapier_point(b.custom_center_of_mass),
-                b.mass,
-                godot_vector_to_rapier_vector(b.inertia),
-            ))
-        } else {
-            collider.mass(b.mass)
+            .friction(b.friction)
+            .mass(b.mass)
+            .build();
+        if b.has_custom_center_of_mass || b.inertia != Vector3::ZERO {
+            let mp = collider.mass_properties();
+            let center_of_mass = if b.has_custom_center_of_mass {
+                godot_vector_to_rapier_point(b.custom_center_of_mass)
+            } else {
+                mp.local_com
+            };
+            let inertia = if b.inertia == Vector3::ZERO {
+                mp.principal_inertia()
+            } else {
+                godot_vector_to_rapier_vector(b.inertia)
+            };
+
+            collider.set_mass_properties(MassProperties::new(center_of_mass, b.mass, inertia));
         }
-        .build();
 
         let body_type = body_mode_to_body_type(b.get_body_mode());
         let rigid_body = RigidBodyBuilder::new(body_type)
@@ -471,18 +472,22 @@ impl RapierSpace {
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         b.set_handle(handle);
-        self.godot_bodies.insert(handle, body.clone());
+        self.bodies.insert(handle, body.clone());
     }
     pub fn remove_space_from_bodies_areas(&self) {
-        for area in self.godot_areas.values() {
+        for area in self.areas.values() {
             area.borrow_mut().remove_space();
         }
-        for body in self.godot_bodies.values() {
+        for body in self.bodies.values() {
             body.borrow_mut().remove_space();
         }
     }
 
     pub const fn rid(&self) -> Rid {
         self.rid
+    }
+
+    pub const fn get_step(&self) -> f32 {
+        self.integration_parameters.dt
     }
 }

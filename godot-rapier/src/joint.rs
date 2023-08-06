@@ -5,7 +5,7 @@ pub struct RapierJoint {
 }
 
 impl RapierJoint {
-    pub fn new(rid: Rid) -> Self {
+    pub const fn new(rid: Rid) -> Self {
         Self { rid }
     }
 }

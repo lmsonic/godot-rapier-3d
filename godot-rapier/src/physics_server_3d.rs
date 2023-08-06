@@ -155,8 +155,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let space = Rc::new(RefCell::new(space));
         let default_area_rid = self.area_create();
         if let Ok(default_area) = self.get_area(default_area_rid) {
-            space.borrow_mut().set_default_area(default_area);
             default_area.borrow_mut().set_space(space.clone());
+            space.borrow_mut().set_default_area(default_area);
         }
         self.spaces.insert(space_rid, space);
         space_rid
@@ -218,8 +218,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_set_space(&mut self, area: Rid, space: Rid) {
         if let Ok(area) = self.get_area(area) {
             if let Ok(space) = self.get_space(space) {
-                space.borrow_mut().add_area(area);
                 area.borrow_mut().set_space(space.clone());
+                space.borrow_mut().add_area(area);
             }
         }
     }
@@ -388,8 +388,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_set_space(&mut self, body: Rid, space: Rid) {
         if let Ok(body) = self.get_body(body) {
             if let Ok(space) = self.get_space(space) {
-                space.borrow_mut().add_body(body);
                 body.borrow_mut().set_space(space.clone());
+                space.borrow_mut().add_body(body);
             }
         }
     }

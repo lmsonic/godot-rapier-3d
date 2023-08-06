@@ -121,7 +121,8 @@ impl RapierShape for RapierConcaveShape {
     }
 
     fn get_shape(&self) -> SharedShape {
-        SharedShape::new(self.shape.clone())
+        // SharedShape::new(self.shape.clone())
+        self.get_compound_convex_shapes()
     }
 
     fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {

@@ -6,6 +6,8 @@ use godot::engine::PhysicsDirectBodyState3DExtensionVirtual;
 use godot::prelude::*;
 
 use crate::body::RapierBody;
+use crate::collision_object::RapierCollisionObject;
+use crate::conversions::rapier_vector_to_godot_vector;
 
 #[derive(GodotClass)]
 #[class(base=PhysicsDirectBodyState3DExtension)]
@@ -58,17 +60,37 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
         Basis::IDENTITY
     }
     fn set_linear_velocity(&mut self, velocity: Vector3) {
-        // TODO
+        if let Some(space) = self.body.borrow().space() {
+            if let Some(handle) = self.body.borrow().handle() {
+                space.borrow_mut().set_linear_velocity(handle, velocity);
+            }
+        }
     }
     fn get_linear_velocity(&self) -> Vector3 {
-        // TODO
+        if let Some(space) = self.body.borrow().space() {
+            if let Some(handle) = self.body.borrow().handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    return rapier_vector_to_godot_vector(*body.linvel());
+                }
+            }
+        }
         Vector3::ZERO
     }
     fn set_angular_velocity(&mut self, velocity: Vector3) {
-        // TODO
+        if let Some(space) = self.body.borrow().space() {
+            if let Some(handle) = self.body.borrow().handle() {
+                space.borrow_mut().set_angular_velocity(handle, velocity);
+            }
+        }
     }
     fn get_angular_velocity(&self) -> Vector3 {
-        // TODO
+        if let Some(space) = self.body.borrow().space() {
+            if let Some(handle) = self.body.borrow().handle() {
+                if let Some(body) = space.borrow().get_body(handle) {
+                    return rapier_vector_to_godot_vector(*body.angvel());
+                }
+            }
+        }
         Vector3::ZERO
     }
     fn set_transform(&mut self, transform: Transform3D) {
@@ -180,10 +202,23 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
     }
     fn get_step(&self) -> f32 {
         // TODO
-        0.0
+        if let Some(space) = self.body.borrow().space() {
+            return space.borrow().get_step();
+        }
+        1.0 / 60.0
     }
     fn integrate_forces(&mut self) {
-        // TODO
+        let step = self.get_step();
+        let mut linear_velocity = self.get_linear_velocity();
+        let mut angular_velocity = self.get_angular_velocity();
+
+        linear_velocity += self.get_total_gravity() * step;
+
+        linear_velocity *= f32::max(self.get_total_linear_damp().mul_add(-step, 1.0), 0.0);
+        angular_velocity *= f32::max(self.get_total_angular_damp().mul_add(-step, 1.0), 0.0);
+
+        self.set_linear_velocity(linear_velocity);
+        self.set_angular_velocity(angular_velocity);
     }
     fn get_space_state(&mut self) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
         // TODO

@@ -12,14 +12,13 @@ use godot::{
 use rapier3d::prelude::*;
 
 use crate::{
+    area::RapierArea,
     collision_object::{Handle, RapierCollisionObject},
     conversions::{
-        body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
-        isometry_to_transform, rapier_point_to_godot_vector, rapier_vector_to_godot_vector,
+        godot_vector_to_rapier_point, godot_vector_to_rapier_vector, isometry_to_transform,
+        rapier_point_to_godot_vector, rapier_vector_to_godot_vector,
     },
-    direct_body_state_3d::RapierPhysicsDirectBodyState3D,
     error::RapierError,
-    error::RapierResult,
     shapes::RapierShapeInstance,
     space::RapierSpace,
 };
@@ -39,7 +38,6 @@ pub struct RapierBody {
     collision_layer: u32,
     collision_mask: u32,
     collision_priority: f32,
-
     pub bounce: f32,
     pub friction: f32,
     pub mass: f32,
@@ -51,6 +49,9 @@ pub struct RapierBody {
     pub angular_damp_mode: DampMode,
     pub linear_damp: f32,
     pub angular_damp: f32,
+
+    gravity: Vector3,
+    areas: Vec<Rc<RefCell<RapierArea>>>,
 }
 
 impl Default for RapierBody {
@@ -80,12 +81,15 @@ impl Default for RapierBody {
             angular_damp_mode: DampMode::DAMP_MODE_COMBINE,
             linear_damp: Default::default(),
             angular_damp: Default::default(),
+            gravity: Vector3::default(),
+            areas: Default::default(),
         }
     }
 }
 
 impl RapierCollisionObject for RapierBody {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
+        self.remove_from_space();
         self.space = Some(space);
     }
     #[track_caller]
@@ -172,13 +176,7 @@ impl RapierCollisionObject for RapierBody {
     }
 
     fn generic_handle(&self) -> Handle {
-        if self.handle.is_none() {
-            godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
-        }
-        match self.handle {
-            Some(handle) => Handle::BodyHandle(handle),
-            None => Handle::NotSet,
-        }
+        self.handle().map_or(Handle::NotSet, Handle::BodyHandle)
     }
 }
 
@@ -423,7 +421,9 @@ impl RapierBody {
         self.mass = mass;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                space.borrow_mut().set_mass(handle, mass);
+                space
+                    .borrow_mut()
+                    .set_mass(handle, mass, !self.has_custom_center_of_mass);
             }
         }
     }
@@ -433,9 +433,10 @@ impl RapierBody {
 
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                // FIXME: what if theres custom center?
                 if inertia == Vector3::ZERO {
-                    space.borrow_mut().set_mass(handle, self.mass);
+                    space
+                        .borrow_mut()
+                        .set_mass(handle, self.mass, !self.has_custom_center_of_mass);
                 } else {
                     space.borrow_mut().set_inertia(handle, inertia);
                 }
@@ -487,7 +488,7 @@ impl RapierBody {
         self.has_custom_center_of_mass = false;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                space.borrow_mut().set_mass(handle, self.mass);
+                space.borrow_mut().set_mass(handle, self.mass, false);
             }
         }
     }
@@ -596,5 +597,36 @@ impl RapierBody {
             }
         }
         true
+    }
+
+    pub fn pre_step(&mut self, step: f32) {
+        match self.body_mode {
+            BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => {
+                self.integrate_forces(step);
+            }
+            BodyMode::BODY_MODE_KINEMATIC => {
+                self.move_kinematic(step);
+            }
+            _ => {}
+        };
+    }
+
+    fn integrate_forces(&mut self, step: f32) {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle() {
+                let s = space.borrow_mut();
+                if let Some(body) = s.get_body(handle) {
+                    self.gravity = Vector3::ZERO;
+                    let position = rapier_vector_to_godot_vector(*body.translation());
+
+                    // TODO
+                    for area in &self.areas {}
+                }
+            }
+        }
+    }
+
+    fn move_kinematic(&mut self, step: f32) {
+        // TODO
     }
 }

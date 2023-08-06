@@ -8,9 +8,7 @@ use rapier3d::prelude::*;
 
 use crate::{
     collision_object::{Handle, RapierCollisionObject},
-    conversions::{isometry_to_transform, transform_to_isometry},
     error::RapierError,
-    error::RapierResult,
     shapes::RapierShapeInstance,
     space::RapierSpace,
 };
@@ -80,6 +78,7 @@ impl Default for RapierArea {
 
 impl RapierCollisionObject for RapierArea {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
+        self.remove_from_space();
         self.space = Some(space);
     }
 
@@ -160,10 +159,7 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn generic_handle(&self) -> Handle {
-        match self.handle() {
-            Some(handle) => Handle::AreaHandle(handle),
-            None => Handle::NotSet,
-        }
+        self.handle().map_or(Handle::NotSet, Handle::AreaHandle)
     }
 }
 
@@ -291,5 +287,14 @@ impl RapierArea {
             godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
         }
         self.handle
+    }
+
+    pub fn compute_gravity(&self) -> Vector3 {
+        if !self.is_point_gravity {
+            return self.gravity_vector * self.gravity;
+        }
+        // TODO
+
+        Vector3::ZERO
     }
 }

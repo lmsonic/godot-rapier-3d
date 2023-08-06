@@ -5,11 +5,12 @@ use rapier3d::prelude::*;
 
 use crate::{
     conversions::transform_to_isometry,
-    error::{RapierError, RapierResult},
+    error::RapierError,
     shapes::{RapierShape, RapierShapeInstance},
     space::RapierSpace,
 };
 
+#[allow(clippy::enum_variant_names)]
 pub enum Handle {
     AreaHandle(ColliderHandle),
     BodyHandle(RigidBodyHandle),

@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use godot::{
     engine::{
         physics_server_3d::BodyMode,
-        physics_server_3d::{BodyParameter, BodyState},
+        physics_server_3d::{AreaSpaceOverrideMode, BodyParameter, BodyState},
         rigid_body_3d::DampMode,
     },
     prelude::*,
@@ -89,7 +89,7 @@ impl Default for RapierBody {
             linear_damp: Default::default(),
             angular_damp: Default::default(),
             gravity: Vector3::default(),
-            areas: Default::default(),
+            areas: Vec::default(),
             linear_velocity: Vector3::default(),
             angular_velocity: Vector3::default(),
             transform: Transform3D::IDENTITY,
@@ -103,8 +103,8 @@ impl RapierCollisionObject for RapierBody {
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
         self.space = Some(space);
     }
-    fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
-        self.space.clone()
+    fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>> {
+        self.space.as_ref()
     }
 
     fn shapes(&self) -> &Vec<RapierShapeInstance> {
@@ -234,6 +234,7 @@ impl RapierBody {
     pub fn apply_central_impulse(&mut self, impulse: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let impulse = godot_vector_to_rapier_vector(impulse);
                 space.borrow_mut().apply_central_impulse(handle, impulse);
             }
         }
@@ -241,6 +242,8 @@ impl RapierBody {
     pub fn apply_impulse(&mut self, impulse: Vector3, position: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let impulse = godot_vector_to_rapier_vector(impulse);
+                let position = godot_vector_to_rapier_point(position);
                 space.borrow_mut().apply_impulse(handle, impulse, position);
             }
         }
@@ -249,6 +252,7 @@ impl RapierBody {
     pub fn apply_torque_impulse(&mut self, impulse: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let impulse = godot_vector_to_rapier_vector(impulse);
                 space.borrow_mut().apply_torque_impulse(handle, impulse);
             }
         }
@@ -257,6 +261,7 @@ impl RapierBody {
     pub fn apply_torque(&mut self, torque: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let torque = godot_vector_to_rapier_vector(torque);
                 space.borrow_mut().apply_torque(handle, torque);
             }
         }
@@ -265,6 +270,7 @@ impl RapierBody {
     pub fn apply_central_force(&mut self, force: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let force = godot_vector_to_rapier_vector(force);
                 space.borrow_mut().apply_central_force(handle, force);
             }
         }
@@ -272,6 +278,8 @@ impl RapierBody {
     pub fn apply_force(&mut self, force: Vector3, position: Vector3) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let force = godot_vector_to_rapier_vector(force);
+                let position = godot_vector_to_rapier_point(position);
                 space.borrow_mut().apply_force(handle, force, position);
             }
         }
@@ -283,12 +291,10 @@ impl RapierBody {
                     let center_of_mass = body.center_of_mass();
                     let translation = body.translation();
                     let center_of_mass_relative = center_of_mass - translation;
-
-                    let point = godot_vector_to_rapier_point(position);
                     let force = godot_vector_to_rapier_vector(force);
-
+                    let position = godot_vector_to_rapier_point(position);
                     self.constant_force += force;
-                    self.constant_torque += (point - center_of_mass_relative).cross(&force);
+                    self.constant_torque += (position - center_of_mass_relative).cross(&force);
                 }
             }
         }
@@ -306,17 +312,17 @@ impl RapierBody {
         self.constant_torque = godot_vector_to_rapier_vector(torque);
     }
 
-    pub fn constant_force_godot(&self) -> Vector3 {
-        rapier_vector_to_godot_vector(self.constant_force)
-    }
-    pub fn constant_torque_godot(&self) -> Vector3 {
-        rapier_vector_to_godot_vector(self.constant_torque)
-    }
     pub const fn constant_force(&self) -> Vector<f32> {
         self.constant_force
     }
     pub const fn constant_torque(&self) -> Vector<f32> {
         self.constant_torque
+    }
+    pub fn constant_force_godot(&self) -> Vector3 {
+        rapier_vector_to_godot_vector(self.constant_force)
+    }
+    pub fn constant_torque_godot(&self) -> Vector3 {
+        rapier_vector_to_godot_vector(self.constant_torque)
     }
 
     pub fn handle(&self) -> Option<RigidBodyHandle> {
@@ -587,6 +593,7 @@ impl RapierBody {
         self.linear_velocity = value;
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let value = godot_vector_to_rapier_vector(value);
                 space.borrow_mut().set_linear_velocity(handle, value);
             }
         }
@@ -596,6 +603,7 @@ impl RapierBody {
         self.angular_velocity = value;
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
+                let value = godot_vector_to_rapier_vector(value);
                 space.borrow_mut().set_angular_velocity(handle, value);
             }
         }
@@ -679,13 +687,54 @@ impl RapierBody {
     fn integrate_forces(&mut self, step: f32) {
         if let Some(space) = &self.space {
             if let Some(handle) = self.handle() {
-                let s = space.borrow_mut();
-                if let Some(body) = s.get_body(handle) {
+                if let Some(body) = space.borrow().get_body(handle) {
                     self.gravity = Vector3::ZERO;
                     let position = rapier_vector_to_godot_vector(*body.translation());
+                    let mut gravity_done = false;
+                    for area in &self.areas {
+                        gravity_done = match area.borrow().gravity_mode() {
+                            AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_COMBINE => {
+                                self.gravity += area.borrow().compute_gravity(position);
+                                false
+                            }
+                            AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_COMBINE_REPLACE => {
+                                self.gravity += area.borrow().compute_gravity(position);
+                                true
+                            }
+                            AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_REPLACE => {
+                                self.gravity = area.borrow().compute_gravity(position);
+                                true
+                            }
+                            AreaSpaceOverrideMode::AREA_SPACE_OVERRIDE_REPLACE_COMBINE => {
+                                self.gravity = area.borrow().compute_gravity(position);
+                                false
+                            }
+                            _ => false,
+                        };
+                        if gravity_done {
+                            break;
+                        }
+                    }
+                    if !gravity_done {
+                        if let Some(space) = &self.space {
+                            if let Some(default_area) = space.borrow().default_area() {
+                                self.gravity += default_area.borrow().compute_gravity(position);
+                            }
+                        }
+                    }
+                    self.gravity *= body.gravity_scale();
+                    let linear_velocity = body.linvel();
 
-                    // TODO
-                    for area in &self.areas {}
+                    space.borrow_mut().set_linear_velocity(
+                        handle,
+                        linear_velocity + step * godot_vector_to_rapier_vector(self.gravity),
+                    );
+                    space
+                        .borrow_mut()
+                        .apply_central_force(handle, self.constant_force);
+                    space
+                        .borrow_mut()
+                        .apply_torque(handle, self.constant_torque);
                 }
             }
         }

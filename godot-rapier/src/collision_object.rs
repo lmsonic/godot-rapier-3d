@@ -20,7 +20,7 @@ pub enum Handle {
 pub trait RapierCollisionObject {
     fn rid(&self) -> Rid;
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>);
-    fn space(&self) -> Option<Rc<RefCell<RapierSpace>>>;
+    fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>>;
     fn remove_space(&mut self);
 
     fn generic_handle(&self) -> Handle;

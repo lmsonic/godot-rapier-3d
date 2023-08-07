@@ -163,42 +163,44 @@ impl RapierSpace {
         }
     }
 
-    pub fn apply_central_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3) {
+    pub fn apply_central_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.apply_impulse(godot_vector_to_rapier_vector(impulse), true);
+            body.apply_impulse(impulse, true);
         }
     }
-    pub fn apply_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3, position: Vector3) {
+    pub fn apply_impulse(
+        &mut self,
+        handle: RigidBodyHandle,
+        impulse: Vector<f32>,
+        position: Point<f32>,
+    ) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.apply_impulse_at_point(
-                godot_vector_to_rapier_vector(impulse),
-                godot_vector_to_rapier_point(position),
-                true,
-            );
+            body.apply_impulse_at_point(impulse, position, true);
         }
     }
-    pub fn apply_torque_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector3) {
+    pub fn apply_torque_impulse(&mut self, handle: RigidBodyHandle, impulse: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.apply_torque_impulse(godot_vector_to_rapier_vector(impulse), true);
+            body.apply_torque_impulse(impulse, true);
         }
     }
-    pub fn apply_torque(&mut self, handle: RigidBodyHandle, torque: Vector3) {
+    pub fn apply_torque(&mut self, handle: RigidBodyHandle, torque: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.add_torque(godot_vector_to_rapier_vector(torque), true);
+            body.add_torque(torque, true);
         }
     }
-    pub fn apply_central_force(&mut self, handle: RigidBodyHandle, force: Vector3) {
+    pub fn apply_central_force(&mut self, handle: RigidBodyHandle, force: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.add_force(godot_vector_to_rapier_vector(force), true);
+            body.add_force(force, true);
         }
     }
-    pub fn apply_force(&mut self, handle: RigidBodyHandle, force: Vector3, position: Vector3) {
+    pub fn apply_force(
+        &mut self,
+        handle: RigidBodyHandle,
+        force: Vector<f32>,
+        position: Point<f32>,
+    ) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.add_force_at_point(
-                godot_vector_to_rapier_vector(force),
-                godot_vector_to_rapier_point(position),
-                true,
-            );
+            body.add_force_at_point(force, position, true);
         }
     }
 
@@ -278,14 +280,14 @@ impl RapierSpace {
             body.set_position(isometry, true);
         }
     }
-    pub fn set_linear_velocity(&mut self, handle: RigidBodyHandle, value: Vector3) {
+    pub fn set_linear_velocity(&mut self, handle: RigidBodyHandle, value: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.set_linvel(godot_vector_to_rapier_vector(value), true);
+            body.set_linvel(value, true);
         }
     }
-    pub fn set_angular_velocity(&mut self, handle: RigidBodyHandle, value: Vector3) {
+    pub fn set_angular_velocity(&mut self, handle: RigidBodyHandle, value: Vector<f32>) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.set_angvel(godot_vector_to_rapier_vector(value), true);
+            body.set_angvel(value, true);
         }
     }
     pub fn set_is_sleeping(&mut self, handle: RigidBodyHandle, value: bool) {
@@ -488,5 +490,9 @@ impl RapierSpace {
 
     pub const fn get_step(&self) -> f32 {
         self.integration_parameters.dt
+    }
+
+    pub fn default_area(&self) -> Option<&Rc<RefCell<RapierArea>>> {
+        self.default_area.as_ref()
     }
 }

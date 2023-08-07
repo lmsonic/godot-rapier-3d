@@ -4,7 +4,7 @@ use godot::{
     engine::physics_server_3d::{AreaParameter, AreaSpaceOverrideMode},
     prelude::*,
 };
-use rapier3d::{na::Dim, prelude::*};
+use rapier3d::prelude::*;
 
 use crate::{
     collision_object::{Handle, RapierCollisionObject},
@@ -85,8 +85,8 @@ impl RapierCollisionObject for RapierArea {
         self.space = Some(space);
     }
 
-    fn space(&self) -> Option<Rc<RefCell<RapierSpace>>> {
-        self.space.clone()
+    fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>> {
+        self.space.as_ref()
     }
 
     fn shapes(&self) -> &Vec<RapierShapeInstance> {
@@ -291,12 +291,20 @@ impl RapierArea {
         self.handle
     }
 
-    pub fn compute_gravity(&self) -> Vector3 {
+    pub fn compute_gravity(&self, position: Vector3) -> Vector3 {
         if !self.is_point_gravity {
             return self.gravity_vector * self.gravity;
         }
-        // TODO
+        let point = self.transform * self.gravity_vector;
+        let to_point = point - position;
+        let to_point_dst_squared = f32::max(to_point.length_squared(), math::FloatExt::CMP_EPSILON);
+        let to_point_dir = to_point / f32::sqrt(to_point_dst_squared);
+        let gravity_distance_sqr = self.point_gravity_distance * self.point_gravity_distance;
 
-        Vector3::ZERO
+        to_point_dir * (self.gravity * gravity_distance_sqr / to_point_dst_squared)
+    }
+
+    pub const fn gravity_mode(&self) -> AreaSpaceOverrideMode {
+        self.gravity_mode
     }
 }

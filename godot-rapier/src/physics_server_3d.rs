@@ -385,8 +385,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn body_create(&mut self) -> Rid {
         let rid = make_rid();
-        let body = RapierBody::new(rid);
-        self.bodies.insert(rid, Rc::new(RefCell::new(body)));
+        let body = Rc::new(RefCell::new(RapierBody::new(rid)));
+        body.borrow_mut().set_direct_state(Rc::downgrade(&body));
+        self.bodies.insert(rid, body);
         rid
     }
 
@@ -749,9 +750,9 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectBodyState3D>> {
         if let Ok(body) = self.get_body(body) {
-            let direct_state = RapierPhysicsDirectBodyState3D::new(body.clone());
-            let direct_state = Gd::new(direct_state).upcast();
-            return Some(direct_state);
+            if let Some(direct_state) = body.borrow().direct_state() {
+                return Some(direct_state);
+            }
         }
         //TODO
         None

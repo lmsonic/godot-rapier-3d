@@ -4,7 +4,7 @@ use godot::{
     engine::{physics_server_3d::BodyMode, physics_server_3d::SpaceParameter},
     prelude::*,
 };
-use rapier3d::{na::Dim, prelude::*};
+use rapier3d::prelude::*;
 
 use crate::{
     area::RapierArea,
@@ -12,7 +12,7 @@ use crate::{
     collision_object::RapierCollisionObject,
     conversions::{
         body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
-        isometry_to_transform, transform_to_isometry,
+        transform_to_isometry,
     },
 };
 
@@ -69,7 +69,12 @@ impl RapierSpace {
     }
 
     pub fn call_queries(&mut self) {
-        // TODO
+        for body in self.bodies.values() {
+            body.borrow_mut().call_queries();
+        }
+        for area in self.areas.values() {
+            area.borrow_mut().call_queries();
+        }
     }
 
     fn pre_step(&self) {
@@ -204,6 +209,12 @@ impl RapierSpace {
         }
     }
 
+    pub fn move_kinematic(&mut self, handle: RigidBodyHandle, new_pos: Isometry<f32>) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.set_next_kinematic_position(new_pos);
+        }
+    }
+
     pub fn set_bounce(&mut self, handle: RigidBodyHandle, value: f32) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
             if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
@@ -276,7 +287,7 @@ impl RapierSpace {
     }
     pub fn set_transform(&mut self, handle: RigidBodyHandle, value: Transform3D) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            let (isometry, scale) = transform_to_isometry(&value);
+            let (isometry, _) = transform_to_isometry(&value);
             body.set_position(isometry, true);
         }
     }
@@ -398,7 +409,7 @@ impl RapierSpace {
 
     pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
         let mut area_borrow = area.borrow_mut();
-        let collider = area_borrow.build_collider().sensor(true).build();
+        let collider = area_borrow.build_collider().sensor(true);
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
         self.areas.insert(handle, area.clone());
@@ -406,7 +417,7 @@ impl RapierSpace {
 
     pub fn set_default_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
         let mut area_borrow = area.borrow_mut();
-        let collider = area_borrow.build_collider().sensor(true).build();
+        let collider = area_borrow.build_collider().sensor(true);
         let handle = self.collider_set.insert(collider);
         area_borrow.set_handle(handle);
         self.default_area = Some(area.clone());
@@ -419,6 +430,7 @@ impl RapierSpace {
             &mut self.rigid_body_set,
             false,
         );
+        self.areas.remove(&handle);
     }
 
     pub fn remove_body(&mut self, handle: RigidBodyHandle) {
@@ -441,6 +453,7 @@ impl RapierSpace {
             .friction(b.friction())
             .mass(b.mass())
             .build();
+
         if b.has_custom_center_of_mass() || b.inertia() != Vector3::ZERO {
             let mp = collider.mass_properties();
             let center_of_mass = if b.has_custom_center_of_mass() {
@@ -467,8 +480,8 @@ impl RapierSpace {
             .linvel(godot_vector_to_rapier_vector(b.linear_velocity()))
             .angvel(godot_vector_to_rapier_vector(b.angular_velocity()))
             .can_sleep(b.can_sleep())
-            .sleeping(b.is_sleeping())
-            .build();
+            .sleeping(b.is_sleeping());
+
         let handle = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
@@ -492,7 +505,7 @@ impl RapierSpace {
         self.integration_parameters.dt
     }
 
-    pub fn default_area(&self) -> Option<&Rc<RefCell<RapierArea>>> {
+    pub const fn default_area(&self) -> Option<&Rc<RefCell<RapierArea>>> {
         self.default_area.as_ref()
     }
 }

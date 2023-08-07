@@ -81,17 +81,38 @@ impl Default for RapierArea {
 }
 
 impl RapierCollisionObject for RapierArea {
+    fn rid(&self) -> Rid {
+        self.rid
+    }
+
     fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
         self.space = Some(space);
     }
 
     fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>> {
+        if self.space.is_none() {
+            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+        }
         self.space.as_ref()
+    }
+    fn remove_space(&mut self) {
+        if let Some(space) = self.space() {
+            if let Some(handle) = self.handle {
+                space.borrow_mut().remove_area(handle);
+            }
+        }
+        self.space = None;
+        self.handle = None;
+    }
+
+    fn generic_handle(&self) -> Handle {
+        self.handle().map_or(Handle::NotSet, Handle::AreaHandle)
     }
 
     fn shapes(&self) -> &Vec<RapierShapeInstance> {
         &self.shapes
     }
+
     fn shapes_mut(&mut self) -> &mut Vec<RapierShapeInstance> {
         &mut self.shapes
     }
@@ -107,23 +128,17 @@ impl RapierCollisionObject for RapierArea {
         self.instance_id
     }
 
-    fn rid(&self) -> Rid {
-        self.rid
+    fn isometry(&self) -> Isometry<f32> {
+        transform_to_isometry(&self.transform).0
     }
 
-    fn remove_space(&mut self) {
-        if let Some(space) = &self.space {
-            if let Some(handle) = self.handle {
-                space.borrow_mut().remove_area(handle);
-            }
-        }
-        self.space = None;
-        self.handle = None;
+    fn scale(&self) -> Vector<f32> {
+        transform_to_isometry(&self.transform).1
     }
 
     fn set_collision_layer(&mut self, layer: u32) {
         self.collision_layer = layer;
-        if let Some(space) = &self.space {
+        if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_area_collision_group(
                     handle,
@@ -140,7 +155,7 @@ impl RapierCollisionObject for RapierArea {
 
     fn set_collision_mask(&mut self, mask: u32) {
         self.collision_mask = mask;
-        if let Some(space) = &self.space {
+        if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
                 space.borrow_mut().set_area_collision_group(
                     handle,
@@ -153,18 +168,6 @@ impl RapierCollisionObject for RapierArea {
 
     fn get_collision_mask(&self) -> u32 {
         self.collision_mask
-    }
-
-    fn generic_handle(&self) -> Handle {
-        self.handle().map_or(Handle::NotSet, Handle::AreaHandle)
-    }
-
-    fn isometry(&self) -> Isometry<f32> {
-        transform_to_isometry(&self.transform).0
-    }
-
-    fn scale(&self) -> Vector<f32> {
-        transform_to_isometry(&self.transform).1
     }
 }
 
@@ -183,9 +186,9 @@ impl RapierArea {
 
     pub fn set_transform(&mut self, transform: Transform3D) {
         self.transform = transform;
-        if let Some(space) = &self.space {
+        if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                let (isometry, scale) = transform_to_isometry(&transform);
+                let (isometry, _) = transform_to_isometry(&transform);
                 space.borrow_mut().set_area_isometry(handle, isometry);
             }
         }
@@ -306,5 +309,25 @@ impl RapierArea {
 
     pub const fn gravity_mode(&self) -> AreaSpaceOverrideMode {
         self.gravity_mode
+    }
+
+    pub fn call_queries(&mut self) {
+        // TODO
+    }
+
+    pub const fn linear_damp_mode(&self) -> AreaSpaceOverrideMode {
+        self.linear_damp_mode
+    }
+
+    pub const fn angular_damp_mode(&self) -> AreaSpaceOverrideMode {
+        self.angular_damp_mode
+    }
+
+    pub const fn linear_damp(&self) -> f32 {
+        self.linear_damp
+    }
+
+    pub const fn angular_damp(&self) -> f32 {
+        self.angular_damp
     }
 }

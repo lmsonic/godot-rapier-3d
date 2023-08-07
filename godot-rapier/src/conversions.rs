@@ -52,7 +52,7 @@ pub fn isometry_to_transform(isometry: &Isometry<f32>) -> Transform3D {
 pub const fn body_mode_to_body_type(mode: BodyMode) -> RigidBodyType {
     match mode {
         BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => RigidBodyType::Dynamic,
-        BodyMode::BODY_MODE_KINEMATIC => RigidBodyType::KinematicVelocityBased,
+        BodyMode::BODY_MODE_KINEMATIC => RigidBodyType::KinematicPositionBased,
         _ => RigidBodyType::Fixed,
     }
 }

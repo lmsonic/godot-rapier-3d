@@ -157,6 +157,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             default_area.borrow_mut().set_space(space.clone());
             space.borrow_mut().set_default_area(default_area);
         }
+        space.borrow_mut().set_direct_state(Rc::downgrade(&space));
         self.spaces.insert(space_rid, space);
         space_rid
     }
@@ -191,9 +192,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         space: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
         if let Ok(space) = self.get_space(space) {
-            let direct_state = RapierPhysicsDirectSpaceState3D::new(space.clone());
-            let direct_state = Gd::new(direct_state).upcast();
-            return Some(direct_state);
+            return space.borrow().direct_state();
         }
         None
     }
@@ -750,11 +749,8 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         body: Rid,
     ) -> Option<Gd<godot::engine::PhysicsDirectBodyState3D>> {
         if let Ok(body) = self.get_body(body) {
-            if let Some(direct_state) = body.borrow().direct_state() {
-                return Some(direct_state);
-            }
+            return body.borrow().direct_state();
         }
-        //TODO
         None
     }
     fn soft_body_create(&mut self) -> Rid {

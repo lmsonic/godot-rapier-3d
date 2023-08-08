@@ -257,7 +257,9 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
         self.set_angular_velocity(angular_velocity);
     }
     fn get_space_state(&mut self) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
-        // TODO
+        if let Some(space) = self.body.upgrade().unwrap().borrow().space() {
+            return space.borrow().direct_state();
+        }
         None
     }
 }

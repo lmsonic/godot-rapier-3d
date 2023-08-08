@@ -34,13 +34,11 @@ impl RapierPhysicsServer3D {
             return Ok(area);
         }
         let caller_location = std::panic::Location::caller();
-        let caller_file = caller_location.file();
-        let caller_line_number = caller_location.line();
+        let file = caller_location.file();
+        let line_number = caller_location.line();
         godot_error!(
-            "{} called from {}:{}",
-            RapierError::AreaRidMissing(rid),
-            caller_file,
-            caller_line_number
+            "{} called from {file}:{line_number}",
+            RapierError::SpaceRidMissing(rid)
         );
         Err(RapierError::AreaRidMissing(rid))
     }
@@ -57,13 +55,11 @@ impl RapierPhysicsServer3D {
             return Ok(space);
         }
         let caller_location = std::panic::Location::caller();
-        let caller_file = caller_location.file();
-        let caller_line_number = caller_location.line();
+        let file = caller_location.file();
+        let line_number = caller_location.line();
         godot_error!(
-            "{} called from {}:{}",
-            RapierError::SpaceRidMissing(rid),
-            caller_file,
-            caller_line_number
+            "{} called from {file}:{line_number}",
+            RapierError::SpaceRidMissing(rid)
         );
         Err(RapierError::SpaceRidMissing(rid))
     }

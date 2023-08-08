@@ -1,7 +1,13 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::{Rc, Weak},
+};
 
 use godot::{
-    engine::{physics_server_3d::BodyMode, physics_server_3d::SpaceParameter},
+    engine::{
+        physics_server_3d::BodyMode, physics_server_3d::SpaceParameter, PhysicsDirectSpaceState3D,
+    },
     prelude::*,
 };
 use rapier3d::prelude::*;
@@ -14,6 +20,7 @@ use crate::{
         body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
         transform_to_isometry,
     },
+    direct_space_state_3d::RapierPhysicsDirectSpaceState3D,
 };
 
 pub struct RapierSpace {
@@ -35,6 +42,16 @@ pub struct RapierSpace {
     ccd_solver: CCDSolver,
     physics_hooks: (),
     event_handler: (),
+
+    direct_state: Option<Gd<RapierPhysicsDirectSpaceState3D>>,
+}
+
+impl Drop for RapierSpace {
+    fn drop(&mut self) {
+        if let Some(direct_state) = self.direct_state.take() {
+            direct_state.free();
+        }
+    }
 }
 
 const DEFAULT_CONTACT_RECYCLE_RADIUS: f32 = 0.01;
@@ -65,6 +82,7 @@ impl RapierSpace {
             ccd_solver: CCDSolver::default(),
             physics_hooks: Default::default(),
             event_handler: Default::default(),
+            direct_state: None,
         }
     }
 
@@ -507,5 +525,17 @@ impl RapierSpace {
 
     pub const fn default_area(&self) -> Option<&Rc<RefCell<RapierArea>>> {
         self.default_area.as_ref()
+    }
+
+    pub fn set_direct_state(&mut self, space: Weak<RefCell<Self>>) {
+        let direct_state = RapierPhysicsDirectSpaceState3D::new(space);
+        self.direct_state = Some(Gd::new(direct_state));
+    }
+
+    pub fn direct_state(&self) -> Option<Gd<PhysicsDirectSpaceState3D>> {
+        if let Some(direct_state) = &self.direct_state {
+            return Some(direct_state.share().upcast::<PhysicsDirectSpaceState3D>());
+        }
+        None
     }
 }

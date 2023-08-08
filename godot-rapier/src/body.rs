@@ -71,8 +71,7 @@ pub struct RapierBody {
 
 impl Drop for RapierBody {
     fn drop(&mut self) {
-        let direct_state = self.direct_state.take();
-        if let Some(direct_state) = direct_state {
+        if let Some(direct_state) = self.direct_state.take() {
             direct_state.free();
         }
     }
@@ -86,9 +85,16 @@ impl RapierCollisionObject for RapierBody {
         self.space = Some(space);
     }
 
+    #[track_caller]
     fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>> {
         if self.space.is_none() {
-            godot_error!("{}", RapierError::ObjectSpaceNotSet(self.rid));
+            let caller_location = std::panic::Location::caller();
+            let file = caller_location.file();
+            let line_number = caller_location.line();
+            godot_error!(
+                "{} called from {file}:{line_number}",
+                RapierError::ObjectSpaceNotSet(self.rid)
+            );
         }
         self.space.as_ref()
     }

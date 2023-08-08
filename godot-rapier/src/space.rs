@@ -508,10 +508,13 @@ impl RapierSpace {
     }
     pub fn remove_space_from_bodies_areas(&mut self) {
         for area in self.areas.values() {
-            area.borrow_mut().remove_space();
+            area.borrow_mut().remove_space(false);
         }
         for body in self.bodies.values() {
-            body.borrow_mut().remove_space();
+            body.borrow_mut().remove_space(false);
+        }
+        if let Some(default_area) = self.default_area.take() {
+            default_area.borrow_mut().remove_space(false);
         }
     }
 

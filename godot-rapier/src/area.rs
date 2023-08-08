@@ -101,10 +101,12 @@ impl RapierCollisionObject for RapierArea {
         }
         self.space.as_ref()
     }
-    fn remove_space(&mut self) {
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle {
-                space.borrow_mut().remove_area(handle);
+    fn remove_space(&mut self, remove_from_space: bool) {
+        if remove_from_space {
+            if let Some(space) = self.space() {
+                if let Some(handle) = self.handle() {
+                    space.borrow_mut().remove_area(handle);
+                }
             }
         }
         self.space = None;

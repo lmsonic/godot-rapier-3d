@@ -7,7 +7,6 @@ use godot::prelude::*;
 
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
-use crate::conversions::rapier_vector_to_godot_vector;
 
 #[derive(GodotClass)]
 #[class(base=PhysicsDirectBodyState3DExtension)]

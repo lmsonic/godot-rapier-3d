@@ -41,7 +41,7 @@ impl PhysicsDirectSpaceState3DExtensionVirtual for RapierPhysicsDirectSpaceState
         result: *mut PhysicsServer3DExtensionRayResult,
     ) -> bool {
         // TODO
-        // TODO
+
         false
     }
     #[doc = "# Safety"]

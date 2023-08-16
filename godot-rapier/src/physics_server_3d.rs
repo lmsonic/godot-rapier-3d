@@ -23,7 +23,8 @@ use rapier3d::prelude::*;
 use crate::area::RapierArea;
 use crate::body::RapierBody;
 use crate::collision_object::RapierCollisionObject;
-use crate::conversions::{isometry_to_transform, transform_to_isometry};
+
+use crate::conversions::IntoExt;
 use crate::direct_body_state_3d::RapierPhysicsDirectBodyState3D;
 use crate::direct_space_state_3d::RapierPhysicsDirectSpaceState3D;
 use crate::error::{RapierError, RapierResult};
@@ -39,6 +40,10 @@ use crate::space::RapierSpace;
 #[derive(GodotClass, Default)]
 #[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
+    // TODO: Put all the storage for RID objects into a different struct and pass a reference to it to the objects?
+    // Objects reference each other by having the rid of the other.
+    // Eliminate the need for RcRefCells, and only need Box for RapierShapes
+    // Get the borrow checker back
     pub(crate) shapes: HashMap<Rid, Rc<RefCell<dyn RapierShape>>>,
     pub(crate) spaces: HashMap<Rid, Rc<RefCell<RapierSpace>>>,
     active_spaces: HashSet<Rid>,
@@ -73,6 +78,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let rid = make_rid();
         let shape = RapierBoxShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+
         rid
     }
     fn capsule_shape_create(&mut self) -> Rid {
@@ -152,6 +158,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn space_create(&mut self) -> Rid {
         let space_rid = make_rid();
         let space = Rc::new(RefCell::new(RapierSpace::new(space_rid)));
+        // TODO: default area needs to have the same rid as the space
         let default_area_rid = self.area_create();
         if let Ok(default_area) = self.get_area(default_area_rid) {
             default_area.borrow_mut().set_space(space.clone());
@@ -159,6 +166,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         }
         space.borrow_mut().set_direct_state(Rc::downgrade(&space));
         self.spaces.insert(space_rid, space);
+        godot_print!("created space at {space_rid}");
         space_rid
     }
     fn space_set_active(&mut self, space: Rid, active: bool) {
@@ -282,7 +290,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn area_get_shape_transform(&self, area: Rid, shape_idx: i32) -> Transform3D {
         if let Ok(area) = self.get_area(area) {
             if let Some(shape_inst) = area.borrow().nth_shape_instance(shape_idx as usize) {
-                return isometry_to_transform(&shape_inst.isometry);
+                return shape_inst.isometry.into_ext();
             }
         }
         Transform3D::IDENTITY
@@ -387,10 +395,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let body = Rc::new(RefCell::new(RapierBody::new(rid)));
         body.borrow_mut().set_direct_state(Rc::downgrade(&body));
         self.bodies.insert(rid, body);
+        godot_print!("created body at {rid}");
         rid
     }
 
     fn body_set_space(&mut self, body: Rid, space: Rid) {
+        godot_print!("set body space {body} {space}");
+
         if let Ok(body) = self.get_body(body) {
             if space.is_valid() {
                 if let Ok(space) = self.get_space(space) {
@@ -470,7 +481,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn body_get_shape_transform(&self, body: Rid, shape_idx: i32) -> Transform3D {
         if let Ok(body) = self.get_body(body) {
             if let Some(shape_inst) = body.borrow().nth_shape_instance(shape_idx as usize) {
-                return isometry_to_transform(&shape_inst.isometry);
+                return shape_inst.isometry.into_ext();
             }
         }
         Transform3D::IDENTITY

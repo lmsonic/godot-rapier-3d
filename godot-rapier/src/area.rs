@@ -8,7 +8,7 @@ use rapier3d::prelude::*;
 
 use crate::{
     collision_object::{Handle, RapierCollisionObject},
-    conversions::transform_to_isometry,
+    conversions::{FromExt, IntoExt},
     error::RapierError,
     shapes::RapierShapeInstance,
     space::RapierSpace,
@@ -22,8 +22,10 @@ const DEFAULT_WIND_DIRECTION: Vector3 = Vector3::ZERO;
 
 pub struct RapierArea {
     rid: Rid,
+    // TODO: change these two to be a single option tuple or struct (making invalid states impossible)
     space: Option<Rc<RefCell<RapierSpace>>>,
     handle: Option<ColliderHandle>,
+
     shapes: Vec<RapierShapeInstance>,
     instance_id: Option<u64>,
 
@@ -137,11 +139,13 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn isometry(&self) -> Isometry<f32> {
-        transform_to_isometry(&self.transform).0
+        let (iso, _) = self.transform.into_ext();
+        iso
     }
 
     fn scale(&self) -> Vector<f32> {
-        transform_to_isometry(&self.transform).1
+        let (_, scale) = self.transform.into_ext();
+        scale
     }
 
     fn set_collision_layer(&mut self, layer: u32) {
@@ -196,7 +200,7 @@ impl RapierArea {
         self.transform = transform;
         if let Some(space) = self.space() {
             if let Some(handle) = self.handle() {
-                let (isometry, _) = transform_to_isometry(&transform);
+                let (isometry, _) = transform.into_ext();
                 space.borrow_mut().set_area_isometry(handle, isometry);
             }
         }

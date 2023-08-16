@@ -4,7 +4,7 @@ use godot::prelude::*;
 use rapier3d::prelude::*;
 
 use crate::{
-    conversions::transform_to_isometry,
+    conversions::IntoExt,
     error::RapierError,
     shapes::{RapierShape, RapierShapeInstance},
     space::RapierSpace,
@@ -31,7 +31,7 @@ pub trait RapierCollisionObject {
         transform: Transform3D,
         disabled: bool,
     ) {
-        let (isometry, scale) = transform_to_isometry(&transform);
+        let (isometry, scale) = transform.into_ext();
         let shape_instance = RapierShapeInstance::new(shape, isometry, scale, disabled);
         self.shapes_mut().push(shape_instance);
         self.update_shapes();
@@ -79,7 +79,7 @@ pub trait RapierCollisionObject {
 
     fn set_shape_transform(&mut self, idx: usize, transform: Transform3D) {
         if let Some(shape) = self.shapes_mut().get_mut(idx) {
-            let (isometry, scale) = transform_to_isometry(&transform);
+            let (isometry, scale) = transform.into_ext();
             shape.isometry = isometry;
             shape.scale = scale;
             self.update_shapes();

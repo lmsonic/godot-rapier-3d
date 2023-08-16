@@ -38,7 +38,7 @@ impl RapierPhysicsServer3D {
         let line_number = caller_location.line();
         godot_error!(
             "{} called from {file}:{line_number}",
-            RapierError::SpaceRidMissing(rid)
+            RapierError::AreaRidMissing(rid)
         );
         Err(RapierError::AreaRidMissing(rid))
     }

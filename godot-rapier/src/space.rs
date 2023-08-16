@@ -13,14 +13,8 @@ use godot::{
 use rapier3d::prelude::*;
 
 use crate::{
-    area::RapierArea,
-    body::RapierBody,
-    collision_object::RapierCollisionObject,
-    conversions::{
-        body_mode_to_body_type, godot_vector_to_rapier_point, godot_vector_to_rapier_vector,
-        transform_to_isometry,
-    },
-    direct_space_state_3d::RapierPhysicsDirectSpaceState3D,
+    area::RapierArea, body::RapierBody, collision_object::RapierCollisionObject,
+    conversions::IntoExt, direct_space_state_3d::RapierPhysicsDirectSpaceState3D,
 };
 
 pub struct RapierSpace {
@@ -176,7 +170,7 @@ impl RapierSpace {
 
     pub fn set_body_mode(&mut self, handle: RigidBodyHandle, mode: BodyMode) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            body.set_body_type(body_mode_to_body_type(mode), true);
+            body.set_body_type(mode.into_ext(), true);
         }
     }
 
@@ -254,7 +248,7 @@ impl RapierSpace {
                 collider.set_mass_properties(MassProperties::new(
                     mp.local_com,
                     body.mass(),
-                    godot_vector_to_rapier_vector(inertia),
+                    inertia.into_ext(),
                 ));
             }
         }
@@ -264,7 +258,7 @@ impl RapierSpace {
             if let Some(collider) = self.collider_set.get_mut(body.colliders()[0]) {
                 let mp = collider.mass_properties();
                 collider.set_mass_properties(MassProperties::new(
-                    godot_vector_to_rapier_point(center_of_mass),
+                    center_of_mass.into_ext(),
                     body.mass(),
                     mp.principal_inertia(),
                 ));
@@ -305,7 +299,7 @@ impl RapierSpace {
     }
     pub fn set_transform(&mut self, handle: RigidBodyHandle, value: Transform3D) {
         if let Some(body) = self.rigid_body_set.get_mut(handle) {
-            let (isometry, _) = transform_to_isometry(&value);
+            let (isometry, _) = value.into_ext();
             body.set_position(isometry, true);
         }
     }
@@ -475,28 +469,28 @@ impl RapierSpace {
         if b.has_custom_center_of_mass() || b.inertia() != Vector3::ZERO {
             let mp = collider.mass_properties();
             let center_of_mass = if b.has_custom_center_of_mass() {
-                godot_vector_to_rapier_point(b.custom_center_of_mass())
+                b.custom_center_of_mass().into_ext()
             } else {
                 mp.local_com
             };
             let inertia = if b.inertia() == Vector3::ZERO {
                 mp.principal_inertia()
             } else {
-                godot_vector_to_rapier_vector(b.inertia())
+                b.inertia().into_ext()
             };
 
             collider.set_mass_properties(MassProperties::new(center_of_mass, b.mass(), inertia));
         }
 
-        let body_type = body_mode_to_body_type(b.body_mode());
+        let body_type = b.body_mode().into_ext();
         let rigid_body = RigidBodyBuilder::new(body_type)
             .ccd_enabled(b.is_ccd_enabled())
             .linear_damping(b.linear_damp())
             .angular_damping(b.angular_damp())
             .gravity_scale(b.gravity_scale())
             .position(b.isometry())
-            .linvel(godot_vector_to_rapier_vector(b.linear_velocity()))
-            .angvel(godot_vector_to_rapier_vector(b.angular_velocity()))
+            .linvel(b.linear_velocity().into_ext())
+            .angvel(b.angular_velocity().into_ext())
             .can_sleep(b.can_sleep())
             .sleeping(b.is_sleeping());
 

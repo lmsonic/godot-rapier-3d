@@ -158,12 +158,13 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     fn space_create(&mut self) -> Rid {
         let space_rid = make_rid();
         let space = Rc::new(RefCell::new(RapierSpace::new(space_rid)));
-        // TODO: default area needs to have the same rid as the space
-        let default_area_rid = self.area_create();
-        if let Ok(default_area) = self.get_area(default_area_rid) {
-            default_area.borrow_mut().set_space(space.clone());
-            space.borrow_mut().set_default_area(default_area);
-        }
+
+        let default_area = Rc::new(RefCell::new(RapierArea::new(space_rid)));
+        self.areas.insert(space_rid, default_area.clone());
+
+        let handle = space.borrow_mut().set_default_area(default_area.clone());
+        default_area.borrow_mut().set_space(space.clone(), handle);
+
         space.borrow_mut().set_direct_state(Rc::downgrade(&space));
         self.spaces.insert(space_rid, space);
         godot_print!("created space at {space_rid}");
@@ -226,16 +227,16 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if space.is_valid() {
                 if let Ok(space) = self.get_space(space) {
                     area.borrow_mut().remove_space(true);
-                    space.borrow_mut().add_area(area);
-                    area.borrow_mut().set_space(space.clone());
+                    let handle = space.borrow_mut().add_area(area);
+                    area.borrow_mut().set_space(space.clone(), handle);
                 }
             }
         }
     }
     fn area_get_space(&self, area: Rid) -> Rid {
         if let Ok(area) = self.get_area(area) {
-            if let Some(space) = area.borrow().space() {
-                let rid = space.borrow().rid();
+            if let Some(space_info) = area.borrow().space_info() {
+                let rid = space_info.space.borrow().rid();
                 if self.has_space(rid) {
                     return rid;
                 }
@@ -406,16 +407,16 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
             if space.is_valid() {
                 if let Ok(space) = self.get_space(space) {
                     body.borrow_mut().remove_space(true);
-                    space.borrow_mut().add_body(body);
-                    body.borrow_mut().set_space(space.clone());
+                    let handle = space.borrow_mut().add_body(body);
+                    body.borrow_mut().set_space_info(space.clone(), handle);
                 }
             }
         }
     }
     fn body_get_space(&self, body: Rid) -> Rid {
         if let Ok(body) = self.get_body(body) {
-            if let Some(space) = body.borrow().space() {
-                let rid = space.borrow().rid();
+            if let Some(space_info) = body.borrow().space_info() {
+                let rid = space_info.space.borrow().rid();
                 if self.has_space(rid) {
                     return rid;
                 }

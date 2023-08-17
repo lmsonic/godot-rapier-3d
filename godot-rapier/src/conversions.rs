@@ -4,15 +4,13 @@ use rapier3d::{
     prelude::*,
 };
 
-// TODO: bypass orphan rule for From using Newtype pattern
-
-pub(crate) trait FromExt<T>: Sized {
+pub trait FromExt<T>: Sized {
     /// Converts to this type from the input type.
     #[must_use]
     fn from_ext(value: T) -> Self;
 }
 
-pub(crate) trait IntoExt<T>: Sized {
+pub trait IntoExt<T>: Sized {
     /// Converts this type into the (usually inferred) input type.
     #[must_use]
     fn into_ext(self) -> T;
@@ -28,7 +26,7 @@ where
     }
 }
 impl<T> FromExt<T> for T {
-    #[inline(always)]
+    #[inline]
     fn from_ext(t: T) -> T {
         t
     }
@@ -85,7 +83,7 @@ impl FromExt<Isometry<f32>> for Transform3D {
         let rapier_quat = isometry.rotation.coords;
         let godot_quat =
             Quaternion::new(rapier_quat.x, rapier_quat.y, rapier_quat.z, rapier_quat.w);
-        Transform3D {
+        Self {
             basis: Basis::from_quat(godot_quat),
             origin,
         }
@@ -96,9 +94,9 @@ impl FromExt<BodyMode> for RigidBodyType {
     #[inline]
     fn from_ext(mode: BodyMode) -> Self {
         match mode {
-            BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => RigidBodyType::Dynamic,
-            BodyMode::BODY_MODE_KINEMATIC => RigidBodyType::KinematicPositionBased,
-            _ => RigidBodyType::Fixed,
+            BodyMode::BODY_MODE_RIGID | BodyMode::BODY_MODE_RIGID_LINEAR => Self::Dynamic,
+            BodyMode::BODY_MODE_KINEMATIC => Self::KinematicPositionBased,
+            _ => Self::Fixed,
         }
     }
 }

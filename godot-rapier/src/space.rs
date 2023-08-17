@@ -419,20 +419,19 @@ impl RapierSpace {
         }
     }
 
-    pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
-        let mut area_borrow = area.borrow_mut();
+    pub fn add_area(&mut self, area: &Rc<RefCell<RapierArea>>) -> ColliderHandle {
+        let area_borrow = area.borrow_mut();
         let collider = area_borrow.build_collider().sensor(true);
         let handle = self.collider_set.insert(collider);
-        area_borrow.set_handle(handle);
         self.areas.insert(handle, area.clone());
+        handle
     }
 
-    pub fn set_default_area(&mut self, area: &Rc<RefCell<RapierArea>>) {
-        let mut area_borrow = area.borrow_mut();
-        let collider = area_borrow.build_collider().sensor(true);
+    pub fn set_default_area(&mut self, area: Rc<RefCell<RapierArea>>) -> ColliderHandle {
+        let collider = area.borrow_mut().build_collider().sensor(true);
         let handle = self.collider_set.insert(collider);
-        area_borrow.set_handle(handle);
-        self.default_area = Some(area.clone());
+        self.default_area = Some(area);
+        handle
     }
 
     pub fn remove_area(&mut self, handle: ColliderHandle) {
@@ -457,8 +456,8 @@ impl RapierSpace {
         self.bodies.remove(&handle);
     }
 
-    pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) {
-        let mut b = body.borrow_mut();
+    pub fn add_body(&mut self, body: &Rc<RefCell<RapierBody>>) -> RigidBodyHandle {
+        let b = body.borrow_mut();
         let mut collider = b
             .build_collider()
             .restitution(b.bounce())
@@ -497,8 +496,8 @@ impl RapierSpace {
         let handle = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, handle, &mut self.rigid_body_set);
-        b.set_handle(handle);
         self.bodies.insert(handle, body.clone());
+        handle
     }
     pub fn remove_space_from_bodies_areas(&mut self) {
         for area in self.areas.values() {

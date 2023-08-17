@@ -1,4 +1,4 @@
-#![allow(unused, non_snake_case)]
+#![allow(unused, non_snake_case, clippy::unwrap_used)]
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -237,8 +237,8 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
         Vector3::ZERO
     }
     fn get_step(&self) -> f32 {
-        if let Some(space) = self.body.upgrade().unwrap().borrow().space() {
-            return space.borrow().get_step();
+        if let Some(space_info) = self.body.upgrade().unwrap().borrow().space_info() {
+            return space_info.space.borrow().get_step();
         }
         1.0 / 60.0
     }
@@ -256,8 +256,8 @@ impl PhysicsDirectBodyState3DExtensionVirtual for RapierPhysicsDirectBodyState3D
         self.set_angular_velocity(angular_velocity);
     }
     fn get_space_state(&mut self) -> Option<Gd<godot::engine::PhysicsDirectSpaceState3D>> {
-        if let Some(space) = self.body.upgrade().unwrap().borrow().space() {
-            return space.borrow().direct_state();
+        if let Some(space_info) = self.body.upgrade().unwrap().borrow().space_info() {
+            return space_info.space.borrow().direct_state();
         }
         None
     }

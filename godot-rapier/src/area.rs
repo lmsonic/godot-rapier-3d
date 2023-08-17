@@ -7,11 +7,8 @@ use godot::{
 use rapier3d::prelude::*;
 
 use crate::{
-    collision_object::{Handle, RapierCollisionObject},
-    conversions::{FromExt, IntoExt},
-    error::RapierError,
-    shapes::RapierShapeInstance,
-    space::RapierSpace,
+    collision_object::RapierCollisionObject, conversions::IntoExt, error::RapierError,
+    shapes::RapierShapeInstance, space::RapierSpace,
 };
 
 const DEFAULT_WIND_FORCE_MAGNITUDE: f32 = 0.0;
@@ -20,11 +17,15 @@ const DEFAULT_WIND_ATTENUATION_FACTOR: f32 = 0.0;
 const DEFAULT_WIND_SOURCE: Vector3 = Vector3::ZERO;
 const DEFAULT_WIND_DIRECTION: Vector3 = Vector3::ZERO;
 
+pub struct SpaceInfo {
+    pub space: Rc<RefCell<RapierSpace>>,
+    pub handle: ColliderHandle,
+}
+
 pub struct RapierArea {
     rid: Rid,
     // TODO: change these two to be a single option tuple or struct (making invalid states impossible)
-    space: Option<Rc<RefCell<RapierSpace>>>,
-    handle: Option<ColliderHandle>,
+    space_info: Option<SpaceInfo>,
 
     shapes: Vec<RapierShapeInstance>,
     instance_id: Option<u64>,
@@ -55,8 +56,7 @@ impl Default for RapierArea {
         Self {
             rid: Rid::Invalid,
 
-            space: Option::default(),
-            handle: Option::default(),
+            space_info: None,
             shapes: Vec::default(),
             instance_id: Option::default(),
 
@@ -87,36 +87,13 @@ impl RapierCollisionObject for RapierArea {
         self.rid
     }
 
-    fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>) {
-        self.space = Some(space);
-    }
-
-    fn space(&self) -> Option<&Rc<RefCell<RapierSpace>>> {
-        if self.space.is_none() {
-            let caller_location = std::panic::Location::caller();
-            let file = caller_location.file();
-            let line_number = caller_location.line();
-            godot_error!(
-                "{} called from {file}:{line_number}",
-                RapierError::ObjectSpaceNotSet(self.rid)
-            );
-        }
-        self.space.as_ref()
-    }
     fn remove_space(&mut self, remove_from_space: bool) {
         if remove_from_space {
-            if let Some(space) = self.space() {
-                if let Some(handle) = self.handle() {
-                    space.borrow_mut().remove_area(handle);
-                }
+            if let Some(space_info) = self.space_info() {
+                space_info.space.borrow_mut().remove_area(space_info.handle);
             }
         }
-        self.space = None;
-        self.handle = None;
-    }
-
-    fn generic_handle(&self) -> Handle {
-        self.handle().map_or(Handle::NotSet, Handle::AreaHandle)
+        self.space_info = None;
     }
 
     fn shapes(&self) -> &Vec<RapierShapeInstance> {
@@ -150,14 +127,12 @@ impl RapierCollisionObject for RapierArea {
 
     fn set_collision_layer(&mut self, layer: u32) {
         self.collision_layer = layer;
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle() {
-                space.borrow_mut().set_area_collision_group(
-                    handle,
-                    self.collision_layer,
-                    self.collision_mask,
-                );
-            }
+        if let Some(space_info) = self.space_info() {
+            space_info.space.borrow_mut().set_area_collision_group(
+                space_info.handle,
+                self.collision_layer,
+                self.collision_mask,
+            );
         }
     }
 
@@ -167,24 +142,47 @@ impl RapierCollisionObject for RapierArea {
 
     fn set_collision_mask(&mut self, mask: u32) {
         self.collision_mask = mask;
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle() {
-                space.borrow_mut().set_area_collision_group(
-                    handle,
-                    self.collision_layer,
-                    self.collision_mask,
-                );
-            }
+        if let Some(space_info) = self.space_info() {
+            space_info.space.borrow_mut().set_area_collision_group(
+                space_info.handle,
+                self.collision_layer,
+                self.collision_mask,
+            );
         }
     }
 
     fn get_collision_mask(&self) -> u32 {
         self.collision_mask
     }
+
+    fn update_shapes(&mut self) {
+        if let Some(space_info) = self.space_info() {
+            space_info
+                .space
+                .borrow_mut()
+                .update_area_shape(space_info.handle, self.build_shared_shape());
+        }
+    }
 }
 
 #[allow(clippy::default_trait_access)]
 impl RapierArea {
+    pub fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>, handle: ColliderHandle) {
+        self.space_info = Some(SpaceInfo { space, handle });
+    }
+    pub fn space_info(&self) -> Option<&SpaceInfo> {
+        if self.space_info.is_none() {
+            let caller_location = std::panic::Location::caller();
+            let file = caller_location.file();
+            let line_number = caller_location.line();
+            godot_error!(
+                "{} called from {file}:{line_number}",
+                RapierError::AreaSpaceNotSet(self.rid)
+            );
+        }
+        self.space_info.as_ref()
+    }
+
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
@@ -192,17 +190,14 @@ impl RapierArea {
         }
     }
 
-    pub fn set_handle(&mut self, handle: ColliderHandle) {
-        self.handle = Some(handle);
-    }
-
     pub fn set_transform(&mut self, transform: Transform3D) {
         self.transform = transform;
-        if let Some(space) = self.space() {
-            if let Some(handle) = self.handle() {
-                let (isometry, _) = transform.into_ext();
-                space.borrow_mut().set_area_isometry(handle, isometry);
-            }
+        if let Some(space_info) = self.space_info() {
+            let (isometry, _) = transform.into_ext();
+            space_info
+                .space
+                .borrow_mut()
+                .set_area_isometry(space_info.handle, isometry);
         }
     }
 
@@ -297,13 +292,6 @@ impl RapierArea {
 
     pub fn set_monitorable(&mut self, monitorable: bool) {
         self.monitorable = monitorable;
-    }
-
-    pub fn handle(&self) -> Option<ColliderHandle> {
-        if self.handle.is_none() {
-            godot_error!("{}", RapierError::AreaHandleNotSet(self.rid));
-        }
-        self.handle
     }
 
     pub fn compute_gravity(&self, position: Vector3) -> Vector3 {

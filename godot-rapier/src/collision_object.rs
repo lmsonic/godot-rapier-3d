@@ -33,7 +33,9 @@ pub trait RapierCollisionObject {
         self.update_shapes();
     }
     fn remove_nth_shape(&mut self, idx: usize) -> RapierShapeInstance {
-        let shape_inst = self.shapes_mut().swap_remove(idx);
+        let rid = self.rid();
+        let shape_inst = self.shapes_mut().remove(idx);
+
         self.update_shapes();
         shape_inst
     }
@@ -107,9 +109,15 @@ pub trait RapierCollisionObject {
             Some(SharedShape::new(Compound::new(compound_shapes)))
         }
     }
-
-    fn isometry(&self) -> Isometry<f32>;
-    fn scale(&self) -> Vector<f32>;
+    fn transform(&self) -> Transform3D;
+    fn isometry(&self) -> Isometry<f32> {
+        let (iso, _) = self.transform().into_ext();
+        iso
+    }
+    fn scale(&self) -> Vector<f32> {
+        let (_, scale) = self.transform().into_ext();
+        scale
+    }
 
     fn build_collider(&self) -> ColliderBuilder {
         let collision_groups = InteractionGroups::new(

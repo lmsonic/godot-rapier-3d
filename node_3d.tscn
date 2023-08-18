@@ -37,5 +37,4 @@ shape = SubResource("SphereShape3D_m52mk")
 mesh = SubResource("SphereMesh_en3l1")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3.57851)
 current = true

@@ -116,16 +116,6 @@ impl RapierCollisionObject for RapierBody {
         self.instance_id
     }
 
-    fn isometry(&self) -> Isometry<f32> {
-        let (iso, _) = self.transform().into_ext();
-        iso
-    }
-
-    fn scale(&self) -> Vector<f32> {
-        let (_, scale) = self.transform().into_ext();
-        scale
-    }
-
     fn set_collision_layer(&mut self, layer: u32) {
         self.collision_layer = layer;
         if let Some(space_info) = self.space_info() {
@@ -158,15 +148,60 @@ impl RapierCollisionObject for RapierBody {
 
     fn update_shapes(&mut self) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .update_body_shape(space_info.handle, self.build_shared_shape());
+            let mut space = space_info.space.borrow_mut();
+            space.update_body_shape(space_info.handle, self.build_shared_shape());
         }
+    }
+
+    fn transform(&self) -> Transform3D {
+        if let Some(space_info) = self.space_info() {
+            if let Some(body) = space_info.space.borrow().get_body(space_info.handle) {
+                return (*body.position()).into_ext();
+            }
+        }
+        self.transform
     }
 }
 
 impl RapierBody {
+    pub fn new(rid: Rid) -> Self {
+        Self {
+            rid,
+            space_info: None,
+            shapes: Vec::default(),
+            body_mode: BodyMode::BODY_MODE_STATIC,
+            instance_id: Option::default(),
+            ccd_enabled: Default::default(),
+            body_state_callback: Callable::invalid(),
+            custom_integrator_callback: Callable::invalid(),
+            custom_integrator_userdata: Variant::nil(),
+            has_custom_integrator: false,
+            constant_force: Vector::default(),
+            constant_torque: Vector::default(),
+            collision_layer: 1,
+            collision_mask: 1,
+            collision_priority: 1.0,
+            bounce: Default::default(),
+            friction: Default::default(),
+            mass: 1.0,
+            inertia: Vector3::default(),
+            custom_center_of_mass: Vector3::default(),
+            has_custom_center_of_mass: false,
+            gravity_scale: 1.0,
+            linear_damp_mode: DampMode::DAMP_MODE_COMBINE,
+            angular_damp_mode: DampMode::DAMP_MODE_COMBINE,
+            linear_damp: Default::default(),
+            angular_damp: Default::default(),
+            areas: Vec::default(),
+            linear_velocity: Vector3::default(),
+            angular_velocity: Vector3::default(),
+            transform: Transform3D::IDENTITY,
+            kinematic_isometry: Isometry::default(),
+            is_sleeping: false,
+            can_sleep: true,
+            direct_state: None,
+        }
+    }
     pub fn set_space_info(&mut self, space: Rc<RefCell<RapierSpace>>, handle: RigidBodyHandle) {
         self.space_info = Some(SpaceInfo { space, handle });
     }
@@ -207,19 +242,15 @@ impl RapierBody {
 
     pub fn apply_central_force(&mut self, force: Vector3) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .apply_central_force(space_info.handle, force.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.apply_central_force(space_info.handle, force.into_ext());
         }
     }
 
     pub fn apply_central_impulse(&mut self, impulse: Vector3) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .apply_central_impulse(space_info.handle, impulse.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.apply_central_impulse(space_info.handle, impulse.into_ext());
         }
     }
 
@@ -244,19 +275,15 @@ impl RapierBody {
 
     pub fn apply_torque(&mut self, torque: Vector3) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .apply_torque(space_info.handle, torque.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.apply_torque(space_info.handle, torque.into_ext());
         }
     }
 
     pub fn apply_torque_impulse(&mut self, impulse: Vector3) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .apply_torque_impulse(space_info.handle, impulse.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.apply_torque_impulse(space_info.handle, impulse.into_ext());
         }
     }
 
@@ -357,19 +384,14 @@ impl RapierBody {
     fn integrate_forces(&mut self, step: f32) {
         if let Some(space_info) = self.space_info() {
             let linear_velocity = Vector::from_ext(self.linear_velocity());
+            let mut space = space_info.space.borrow_mut();
 
-            space_info.space.borrow_mut().set_linear_velocity(
+            space.set_linear_velocity(
                 space_info.handle,
                 linear_velocity + Vector::from_ext(step * self.total_gravity()),
             );
-            space_info
-                .space
-                .borrow_mut()
-                .apply_central_force(space_info.handle, self.constant_force);
-            space_info
-                .space
-                .borrow_mut()
-                .apply_torque(space_info.handle, self.constant_torque);
+            space.apply_central_force(space_info.handle, self.constant_force);
+            space.apply_torque(space_info.handle, self.constant_torque);
         }
     }
 
@@ -467,62 +489,15 @@ impl RapierBody {
 
     fn move_kinematic(&mut self) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_linear_velocity(space_info.handle, Vector::zeros());
-            space_info
-                .space
-                .borrow_mut()
-                .set_angular_velocity(space_info.handle, Vector::zeros());
+            let mut space = space_info.space.borrow_mut();
+            space.set_linear_velocity(space_info.handle, Vector::zeros());
+            space.set_angular_velocity(space_info.handle, Vector::zeros());
 
             if self.isometry() == self.kinematic_isometry {
                 return;
             }
 
-            space_info
-                .space
-                .borrow_mut()
-                .move_kinematic(space_info.handle, self.kinematic_isometry);
-        }
-    }
-
-    pub fn new(rid: Rid) -> Self {
-        Self {
-            rid,
-            space_info: None,
-            shapes: Vec::default(),
-            body_mode: BodyMode::BODY_MODE_STATIC,
-            instance_id: Option::default(),
-            ccd_enabled: Default::default(),
-            body_state_callback: Callable::invalid(),
-            custom_integrator_callback: Callable::invalid(),
-            custom_integrator_userdata: Variant::nil(),
-            has_custom_integrator: false,
-            constant_force: Vector::default(),
-            constant_torque: Vector::default(),
-            collision_layer: 1,
-            collision_mask: 1,
-            collision_priority: 1.0,
-            bounce: Default::default(),
-            friction: Default::default(),
-            mass: 1.0,
-            inertia: Vector3::default(),
-            custom_center_of_mass: Vector3::default(),
-            has_custom_center_of_mass: false,
-            gravity_scale: 1.0,
-            linear_damp_mode: DampMode::DAMP_MODE_COMBINE,
-            angular_damp_mode: DampMode::DAMP_MODE_COMBINE,
-            linear_damp: Default::default(),
-            angular_damp: Default::default(),
-            areas: Vec::default(),
-            linear_velocity: Vector3::default(),
-            angular_velocity: Vector3::default(),
-            transform: Transform3D::IDENTITY,
-            kinematic_isometry: Isometry::default(),
-            is_sleeping: false,
-            can_sleep: true,
-            direct_state: None,
+            space.move_kinematic(space_info.handle, self.kinematic_isometry);
         }
     }
 
@@ -558,10 +533,8 @@ impl RapierBody {
         self.custom_center_of_mass = Vector3::ZERO;
         self.has_custom_center_of_mass = false;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_mass(space_info.handle, self.mass, false);
+            let mut space = space_info.space.borrow_mut();
+            space.set_mass(space_info.handle, self.mass, false);
         }
     }
 
@@ -573,10 +546,8 @@ impl RapierBody {
     pub fn set_angular_velocity(&mut self, value: Vector3) {
         self.angular_velocity = value;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_angular_velocity(space_info.handle, value.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.set_angular_velocity(space_info.handle, value.into_ext());
         }
     }
 
@@ -587,6 +558,7 @@ impl RapierBody {
                 .space
                 .borrow_mut()
                 .set_body_mode(space_info.handle, mode);
+
             if self.is_kinematic() {
                 self.kinematic_isometry = self.isometry();
             }
@@ -608,30 +580,24 @@ impl RapierBody {
     pub fn set_bounce(&mut self, bounce: f32) {
         self.bounce = bounce;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_bounce(space_info.handle, bounce);
+            let mut space = space_info.space.borrow_mut();
+            space.set_bounce(space_info.handle, bounce);
         }
     }
 
     pub fn set_can_sleep(&mut self, value: bool) {
         self.can_sleep = value;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_can_sleep(space_info.handle, value);
+            let mut space = space_info.space.borrow_mut();
+            space.set_can_sleep(space_info.handle, value);
         }
     }
     pub fn set_center_of_mass(&mut self, center_of_mass: Vector3) {
         self.custom_center_of_mass = center_of_mass;
         self.has_custom_center_of_mass = true;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_custom_center_of_mass(space_info.handle, center_of_mass);
+            let mut space = space_info.space.borrow_mut();
+            space.set_custom_center_of_mass(space_info.handle, center_of_mass);
         }
     }
     pub fn set_collision_priority(&mut self, priority: f32) {
@@ -653,30 +619,24 @@ impl RapierBody {
     pub fn set_enable_ccd(&mut self, enabled: bool) {
         self.ccd_enabled = enabled;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_ccd_enabled(space_info.handle, enabled);
+            let mut space = space_info.space.borrow_mut();
+            space.set_ccd_enabled(space_info.handle, enabled);
         }
     }
 
     pub fn set_friction(&mut self, friction: f32) {
         self.friction = friction;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_friction(space_info.handle, friction);
+            let mut space = space_info.space.borrow_mut();
+            space.set_friction(space_info.handle, friction);
         }
     }
 
     pub fn set_gravity_scale(&mut self, gravity_scale: f32) {
         self.gravity_scale = gravity_scale;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_gravity_scale(space_info.handle, gravity_scale);
+            let mut space = space_info.space.borrow_mut();
+            space.set_gravity_scale(space_info.handle, gravity_scale);
         }
     }
 
@@ -684,17 +644,11 @@ impl RapierBody {
         self.inertia = inertia;
 
         if let Some(space_info) = self.space_info() {
+            let mut space = space_info.space.borrow_mut();
             if inertia == Vector3::ZERO {
-                space_info.space.borrow_mut().set_mass(
-                    space_info.handle,
-                    self.mass,
-                    self.has_custom_center_of_mass,
-                );
+                space.set_mass(space_info.handle, self.mass, self.has_custom_center_of_mass);
             } else {
-                space_info
-                    .space
-                    .borrow_mut()
-                    .set_inertia(space_info.handle, inertia);
+                space.set_inertia(space_info.handle, inertia);
             }
         }
     }
@@ -702,10 +656,8 @@ impl RapierBody {
     pub fn set_is_sleeping(&mut self, value: bool) {
         self.is_sleeping = value;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_is_sleeping(space_info.handle, value);
+            let mut space = space_info.space.borrow_mut();
+            space.set_is_sleeping(space_info.handle, value);
         }
     }
 
@@ -717,10 +669,8 @@ impl RapierBody {
     pub fn set_linear_velocity(&mut self, value: Vector3) {
         self.linear_velocity = value;
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_linear_velocity(space_info.handle, value.into_ext());
+            let mut space = space_info.space.borrow_mut();
+            space.set_linear_velocity(space_info.handle, value.into_ext());
         }
     }
 
@@ -788,15 +738,12 @@ impl RapierBody {
                 let (iso, _) = value.into_ext();
                 iso
             };
-
             return;
         }
 
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_transform(space_info.handle, value);
+            let mut space = space_info.space.borrow_mut();
+            space.set_transform(space_info.handle, value);
         }
     }
 
@@ -927,28 +874,13 @@ impl RapierBody {
         total_linear_damp
     }
 
-    pub fn transform(&self) -> Transform3D {
-        if let Some(space_info) = self.space_info() {
-            if let Some(body) = space_info.space.borrow().get_body(space_info.handle) {
-                return (*body.position()).into_ext();
-            }
-        }
-        self.transform
-    }
-
     pub fn update_damp(&self) {
         if let Some(space_info) = self.space_info() {
             let total_linear_damp = self.total_linear_damp();
             let total_angular_damp = self.total_angular_damp();
-
-            space_info
-                .space
-                .borrow_mut()
-                .set_linear_damp(space_info.handle, total_linear_damp);
-            space_info
-                .space
-                .borrow_mut()
-                .set_angular_damp(space_info.handle, total_angular_damp);
+            let mut space = space_info.space.borrow_mut();
+            space.set_linear_damp(space_info.handle, total_linear_damp);
+            space.set_angular_damp(space_info.handle, total_angular_damp);
         }
     }
 

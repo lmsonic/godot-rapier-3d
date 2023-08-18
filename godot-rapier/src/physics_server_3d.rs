@@ -366,7 +366,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
     fn area_get_transform(&self, area: Rid) -> Transform3D {
         if let Ok(area) = self.get_area(area) {
-            return area.borrow().get_transform();
+            return area.borrow().transform();
         }
         Transform3D::IDENTITY
     }

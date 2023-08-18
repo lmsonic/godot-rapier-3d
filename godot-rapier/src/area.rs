@@ -115,12 +115,12 @@ impl RapierCollisionObject for RapierArea {
     }
 
     fn isometry(&self) -> Isometry<f32> {
-        let (iso, _) = self.transform.into_ext();
+        let (iso, _) = self.transform().into_ext();
         iso
     }
 
     fn scale(&self) -> Vector<f32> {
-        let (_, scale) = self.transform.into_ext();
+        let (_, scale) = self.transform().into_ext();
         scale
     }
 
@@ -156,11 +156,12 @@ impl RapierCollisionObject for RapierArea {
 
     fn update_shapes(&mut self) {
         if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .update_area_shape(space_info.handle, self.build_shared_shape());
+            let mut space = space_info.space.borrow_mut();
+            space.update_area_shape(space_info.handle, self.build_shared_shape());
         }
+    }
+    fn transform(&self) -> Transform3D {
+        self.transform
     }
 }
 
@@ -189,10 +190,6 @@ impl RapierArea {
                 .borrow_mut()
                 .set_area_isometry(space_info.handle, isometry);
         }
-    }
-
-    pub const fn get_transform(&self) -> Transform3D {
-        self.transform
     }
 
     pub fn get_param(&self, param: AreaParameter) -> Variant {

@@ -271,11 +271,11 @@ impl RapierBody {
         if let Some(direct_state) = &self.direct_state {
             if self.body_state_callback.is_valid() {
                 self.body_state_callback
-                    .callv(array![Variant::from(direct_state.share())]);
+                    .callv(array![direct_state.to_variant()]);
             }
             if self.is_rigid() && self.custom_integrator_callback.is_valid() {
                 self.custom_integrator_callback.callv(array![
-                    Variant::from(direct_state.share()),
+                    direct_state.to_variant(),
                     self.custom_integrator_userdata.clone()
                 ]);
             }

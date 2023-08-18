@@ -60,24 +60,31 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let rid = make_rid();
         let shape = RapierWorldBoundaryShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn separation_ray_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierSeparationRayShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn sphere_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierSphereShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn box_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierBoxShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
 
         rid
     }
@@ -85,30 +92,39 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let rid = make_rid();
         let shape = RapierCapsuleShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn cylinder_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierCylinderShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn convex_polygon_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierConvexShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn concave_polygon_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierConcaveShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
+
         rid
     }
     fn heightmap_shape_create(&mut self) -> Rid {
         let rid = make_rid();
         let shape = RapierHeightmapShape::new(rid);
         self.shapes.insert(rid, Rc::new(RefCell::new(shape)));
+        godot_print!("created shape at {rid}");
         rid
     }
     fn custom_shape_create(&mut self) -> Rid {
@@ -220,15 +236,18 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         let rid = make_rid();
         let area = RapierArea::new(rid);
         self.areas.insert(rid, Rc::new(RefCell::new(area)));
+        godot_print!("created area at {rid}");
+
         rid
     }
-    fn area_set_space(&mut self, area: Rid, space: Rid) {
-        if let Ok(area) = self.get_area(area) {
-            if space.is_valid() {
-                if let Ok(space) = self.get_space(space) {
+    fn area_set_space(&mut self, area_rid: Rid, space_rid: Rid) {
+        if let Ok(area) = self.get_area(area_rid) {
+            if space_rid.is_valid() {
+                if let Ok(space) = self.get_space(space_rid) {
                     area.borrow_mut().remove_space(true);
                     let handle = space.borrow_mut().add_area(area);
                     area.borrow_mut().set_space(space.clone(), handle);
+                    godot_print!("set space {space_rid} to area {area_rid}");
                 }
             }
         }
@@ -400,15 +419,14 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         rid
     }
 
-    fn body_set_space(&mut self, body: Rid, space: Rid) {
-        godot_print!("set body space {body} {space}");
-
-        if let Ok(body) = self.get_body(body) {
-            if space.is_valid() {
-                if let Ok(space) = self.get_space(space) {
+    fn body_set_space(&mut self, body_rid: Rid, space_rid: Rid) {
+        if let Ok(body) = self.get_body(body_rid) {
+            if space_rid.is_valid() {
+                if let Ok(space) = self.get_space(space_rid) {
                     body.borrow_mut().remove_space(true);
                     let handle = space.borrow_mut().add_body(body);
                     body.borrow_mut().set_space_info(space.clone(), handle);
+                    godot_print!("set space {space_rid} to body {body_rid}");
                 }
             }
         }

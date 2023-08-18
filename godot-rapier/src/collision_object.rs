@@ -118,8 +118,6 @@ pub trait RapierCollisionObject {
         );
         self.build_shared_shape().map_or(
             {
-                godot_warn!("{}", RapierError::BuildingObjectWithNoShapes(self.rid()));
-
                 // Empty shape collider
                 ColliderBuilder::ball(0.1)
                     .enabled(false)

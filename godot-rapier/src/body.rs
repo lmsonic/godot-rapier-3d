@@ -11,7 +11,7 @@ use godot::{
         rigid_body_3d::DampMode,
         PhysicsDirectBodyState3D,
     },
-    prelude::*,
+    prelude::{math::ApproxEq, *},
 };
 use rapier3d::prelude::*;
 
@@ -214,6 +214,9 @@ impl RapierBody {
     }
 
     pub fn add_constant_force(&mut self, force: Vector3, position: Vector3) {
+        if force == Vector3::ZERO {
+            return;
+        }
         let center_of_mass = self.center_of_mass();
         let translation = self.transform().origin;
         let center_of_mass_relative = Vector::from_ext(center_of_mass - translation);
@@ -241,6 +244,9 @@ impl RapierBody {
     }
 
     pub fn apply_central_force(&mut self, force: Vector3) {
+        if self.has_custom_integrator || force == Vector3::ZERO {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             let mut space = space_info.space.borrow_mut();
             space.apply_central_force(space_info.handle, force.into_ext());
@@ -255,6 +261,9 @@ impl RapierBody {
     }
 
     pub fn apply_force(&mut self, force: Vector3, position: Vector3) {
+        if self.has_custom_integrator || force == Vector3::ZERO {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             space_info.space.borrow_mut().apply_force(
                 space_info.handle,
@@ -264,6 +273,9 @@ impl RapierBody {
         }
     }
     pub fn apply_impulse(&mut self, impulse: Vector3, position: Vector3) {
+        if impulse == Vector3::ZERO {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             space_info.space.borrow_mut().apply_impulse(
                 space_info.handle,
@@ -274,6 +286,9 @@ impl RapierBody {
     }
 
     pub fn apply_torque(&mut self, torque: Vector3) {
+        if self.has_custom_integrator || torque == Vector3::ZERO {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             let mut space = space_info.space.borrow_mut();
             space.apply_torque(space_info.handle, torque.into_ext());
@@ -281,6 +296,9 @@ impl RapierBody {
     }
 
     pub fn apply_torque_impulse(&mut self, impulse: Vector3) {
+        if impulse == Vector3::ZERO {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             let mut space = space_info.space.borrow_mut();
             space.apply_torque_impulse(space_info.handle, impulse.into_ext());
@@ -383,15 +401,22 @@ impl RapierBody {
 
     fn integrate_forces(&mut self, step: f32) {
         if let Some(space_info) = self.space_info() {
+            if let Some(body) = space_info.space.borrow().get_body(space_info.handle) {
+                if body.is_sleeping() {
+                    return;
+                }
+            }
             let linear_velocity = Vector::from_ext(self.linear_velocity());
             let mut space = space_info.space.borrow_mut();
 
-            space.set_linear_velocity(
-                space_info.handle,
-                linear_velocity + Vector::from_ext(step * self.total_gravity()),
-            );
-            space.apply_central_force(space_info.handle, self.constant_force);
-            space.apply_torque(space_info.handle, self.constant_torque);
+            if !self.has_custom_integrator {
+                space.set_linear_velocity(
+                    space_info.handle,
+                    linear_velocity + Vector::from_ext(step * self.total_gravity()),
+                );
+                space.apply_central_force(space_info.handle, self.constant_force);
+                space.apply_torque(space_info.handle, self.constant_torque);
+            }
         }
     }
 
@@ -539,6 +564,9 @@ impl RapierBody {
     }
 
     pub fn set_angular_damp(&mut self, angular_damp: f32) {
+        if self.angular_damp.approx_eq(&angular_damp) {
+            return;
+        }
         self.angular_damp = angular_damp;
         self.update_damp();
     }
@@ -552,6 +580,9 @@ impl RapierBody {
     }
 
     pub fn set_body_mode(&mut self, mode: BodyMode) {
+        if self.body_mode == mode {
+            return;
+        }
         self.body_mode = mode;
         if let Some(space_info) = self.space_info() {
             space_info
@@ -593,8 +624,13 @@ impl RapierBody {
         }
     }
     pub fn set_center_of_mass(&mut self, center_of_mass: Vector3) {
+        if self.has_custom_center_of_mass && self.custom_center_of_mass == center_of_mass {
+            return;
+        }
+
         self.custom_center_of_mass = center_of_mass;
         self.has_custom_center_of_mass = true;
+
         if let Some(space_info) = self.space_info() {
             let mut space = space_info.space.borrow_mut();
             space.set_custom_center_of_mass(space_info.handle, center_of_mass);
@@ -662,7 +698,10 @@ impl RapierBody {
     }
 
     pub fn set_linear_damp(&mut self, linear_damp: f32) {
-        self.angular_damp = linear_damp;
+        if self.linear_damp.approx_eq(&linear_damp) {
+            return;
+        }
+        self.linear_damp = linear_damp;
         self.update_damp();
     }
 
@@ -875,6 +914,9 @@ impl RapierBody {
     }
 
     pub fn update_damp(&self) {
+        if self.has_custom_integrator {
+            return;
+        }
         if let Some(space_info) = self.space_info() {
             let total_linear_damp = self.total_linear_damp();
             let total_angular_damp = self.total_angular_damp();

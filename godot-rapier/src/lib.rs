@@ -65,6 +65,6 @@ unsafe impl ExtensionLibrary for RapierPhysics {
         true
     }
     fn editor_run_behavior() -> EditorRunBehavior {
-        EditorRunBehavior::Full
+        EditorRunBehavior::AllClasses
     }
 }

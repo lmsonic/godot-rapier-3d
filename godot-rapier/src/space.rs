@@ -337,6 +337,17 @@ impl RapierSpace {
         }
     }
 
+    pub fn reset_forces(&mut self, handle: RigidBodyHandle) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.reset_forces(true);
+        }
+    }
+    pub fn reset_torques(&mut self, handle: RigidBodyHandle) {
+        if let Some(body) = self.rigid_body_set.get_mut(handle) {
+            body.reset_torques(true);
+        }
+    }
+
     pub fn get_body(&self, handle: RigidBodyHandle) -> Option<&RigidBody> {
         self.rigid_body_set.get(handle)
     }

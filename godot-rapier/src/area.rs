@@ -24,7 +24,6 @@ pub struct SpaceInfo {
 
 pub struct RapierArea {
     rid: Rid,
-    // TODO: change these two to be a single option tuple or struct (making invalid states impossible)
     space_info: Option<SpaceInfo>,
 
     shapes: Vec<RapierShapeInstance>,
@@ -170,16 +169,7 @@ impl RapierArea {
     pub fn set_space(&mut self, space: Rc<RefCell<RapierSpace>>, handle: ColliderHandle) {
         self.space_info = Some(SpaceInfo { space, handle });
     }
-    pub fn space_info(&self) -> Option<&SpaceInfo> {
-        if self.space_info.is_none() {
-            let caller_location = std::panic::Location::caller();
-            let file = caller_location.file();
-            let line_number = caller_location.line();
-            godot_error!(
-                "{} called from {file}:{line_number}",
-                RapierError::AreaSpaceNotSet(self.rid)
-            );
-        }
+    pub const fn space_info(&self) -> Option<&SpaceInfo> {
         self.space_info.as_ref()
     }
 

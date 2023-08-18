@@ -717,10 +717,14 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         0.0
     }
     fn body_set_omit_force_integration(&mut self, body: Rid, enable: bool) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut().set_custom_integrator(enable);
+        }
     }
     fn body_is_omitting_force_integration(&self, body: Rid) -> bool {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            return body.borrow().has_custom_integrator();
+        }
         false
     }
     fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
@@ -734,7 +738,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         callable: Callable,
         userdata: Variant,
     ) {
-        //TODO
+        if let Ok(body) = self.get_body(body) {
+            body.borrow_mut()
+                .set_custom_integrator_callback(callable, userdata);
+        }
     }
     fn body_set_ray_pickable(&mut self, body: Rid, enable: bool) {
         //TODO

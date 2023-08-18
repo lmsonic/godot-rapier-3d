@@ -32,14 +32,18 @@ pub struct SpaceInfo {
 #[allow(clippy::struct_excessive_bools)]
 pub struct RapierBody {
     rid: Rid,
-    // TODO: change these two to be a single option tuple or struct (making invalid states impossible)
     space_info: Option<SpaceInfo>,
 
     shapes: Vec<RapierShapeInstance>,
     body_mode: BodyMode,
     instance_id: Option<u64>,
     ccd_enabled: bool,
+
     body_state_callback: Callable,
+    custom_integrator_callback: Callable,
+    custom_integrator_userdata: Variant,
+    has_custom_integrator: bool,
+
     constant_force: Vector<f32>,
     constant_torque: Vector<f32>,
 
@@ -167,17 +171,7 @@ impl RapierBody {
         self.space_info = Some(SpaceInfo { space, handle });
     }
 
-    #[track_caller]
-    pub fn space_info(&self) -> Option<&SpaceInfo> {
-        if self.space_info.is_none() {
-            let caller_location = std::panic::Location::caller();
-            let file = caller_location.file();
-            let line_number = caller_location.line();
-            godot_error!(
-                "{} called from {file}:{line_number}",
-                RapierError::BodySpaceNotSet(self.rid)
-            );
-        }
+    pub const fn space_info(&self) -> Option<&SpaceInfo> {
         self.space_info.as_ref()
     }
     pub fn add_constant_central_force(&mut self, force: Vector3) {
@@ -278,6 +272,12 @@ impl RapierBody {
             if self.body_state_callback.is_valid() {
                 self.body_state_callback
                     .callv(array![Variant::from(direct_state.share())]);
+            }
+            if self.is_rigid() && self.custom_integrator_callback.is_valid() {
+                self.custom_integrator_callback.callv(array![
+                    Variant::from(direct_state.share()),
+                    self.custom_integrator_userdata.clone()
+                ]);
             }
         }
     }
@@ -422,6 +422,15 @@ impl RapierBody {
         self.body_mode == BodyMode::BODY_MODE_KINEMATIC
     }
 
+    pub fn is_static(&self) -> bool {
+        self.body_mode == BodyMode::BODY_MODE_STATIC
+    }
+
+    pub fn is_rigid(&self) -> bool {
+        self.body_mode == BodyMode::BODY_MODE_RIGID
+            || self.body_mode == BodyMode::BODY_MODE_RIGID_LINEAR
+    }
+
     pub fn is_sleeping(&self) -> bool {
         if let Some(space_info) = self.space_info() {
             if let Some(body) = space_info.space.borrow().get_body(space_info.handle) {
@@ -429,10 +438,6 @@ impl RapierBody {
             }
         }
         self.is_sleeping
-    }
-
-    pub fn is_static(&self) -> bool {
-        self.body_mode == BodyMode::BODY_MODE_STATIC
     }
 
     pub const fn linear_damp(&self) -> f32 {
@@ -491,6 +496,9 @@ impl RapierBody {
             instance_id: Option::default(),
             ccd_enabled: Default::default(),
             body_state_callback: Callable::invalid(),
+            custom_integrator_callback: Callable::invalid(),
+            custom_integrator_userdata: Variant::nil(),
+            has_custom_integrator: false,
             constant_force: Vector::default(),
             constant_torque: Vector::default(),
             collision_layer: 1,
@@ -559,12 +567,7 @@ impl RapierBody {
 
     pub fn set_angular_damp(&mut self, angular_damp: f32) {
         self.angular_damp = angular_damp;
-        if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_angular_damp(space_info.handle, angular_damp);
-        }
+        self.update_damp();
     }
 
     pub fn set_angular_velocity(&mut self, value: Vector3) {
@@ -592,6 +595,14 @@ impl RapierBody {
 
     pub fn set_body_state_callback(&mut self, body_state_callback: Callable) {
         self.body_state_callback = body_state_callback;
+    }
+    pub fn set_custom_integrator_callback(
+        &mut self,
+        custom_integrator_callback: Callable,
+        userdata: Variant,
+    ) {
+        self.custom_integrator_callback = custom_integrator_callback;
+        self.custom_integrator_userdata = userdata;
     }
 
     pub fn set_bounce(&mut self, bounce: f32) {
@@ -700,12 +711,7 @@ impl RapierBody {
 
     pub fn set_linear_damp(&mut self, linear_damp: f32) {
         self.angular_damp = linear_damp;
-        if let Some(space_info) = self.space_info() {
-            space_info
-                .space
-                .borrow_mut()
-                .set_linear_damp(space_info.handle, linear_damp);
-        }
+        self.update_damp();
     }
 
     pub fn set_linear_velocity(&mut self, value: Vector3) {
@@ -944,5 +950,37 @@ impl RapierBody {
                 .borrow_mut()
                 .set_angular_damp(space_info.handle, total_angular_damp);
         }
+    }
+
+    pub const fn has_custom_integrator(&self) -> bool {
+        self.has_custom_integrator
+    }
+
+    pub fn set_custom_integrator(&mut self, enabled: bool) {
+        self.has_custom_integrator = enabled;
+        if let Some(space_info) = self.space_info() {
+            let mut space = space_info.space.borrow_mut();
+
+            space.reset_forces(space_info.handle);
+            space.reset_torques(space_info.handle);
+
+            if self.has_custom_integrator {
+                space.set_linear_damp(space_info.handle, 0.0);
+                space.set_angular_damp(space_info.handle, 0.0);
+            } else {
+                space.set_linear_damp(space_info.handle, self.total_linear_damp());
+                space.set_angular_damp(space_info.handle, self.total_angular_damp());
+            }
+        }
+    }
+
+    pub fn add_area(&mut self, area: Rc<RefCell<RapierArea>>) {
+        self.areas.push(area);
+        self.update_damp();
+    }
+
+    pub fn remove_area(&mut self, area_rid: Rid) {
+        self.areas.retain(|a| a.borrow().rid() != area_rid);
+        self.update_damp();
     }
 }

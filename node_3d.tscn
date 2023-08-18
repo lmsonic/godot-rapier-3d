@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://5wselbueg7h0"]
+[gd_scene load_steps=7 format=3 uid="uid://5wselbueg7h0"]
+
+[ext_resource type="Script" path="res://RigidBody3D.gd" id="1_iia1e"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7qemv"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -26,7 +28,7 @@ environment = SubResource("Environment_xd8so")
 shadow_enabled = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
-constant_force = Vector3(0, 1, 0)
+script = ExtResource("1_iia1e")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
 shape = SubResource("SphereShape3D_m52mk")
@@ -35,3 +37,5 @@ shape = SubResource("SphereShape3D_m52mk")
 mesh = SubResource("SphereMesh_en3l1")
 
 [node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3.57851)
+current = true

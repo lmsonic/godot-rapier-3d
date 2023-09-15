@@ -93,3 +93,8 @@ TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
 CORE API HASH: 3144975361
 EDITOR API HASH: 3555714656
 Regenerating editor help cache
+Body created RID(956)
+Body created RID(957)
+Area created RID(996)
+BoxShape created RID(1056)
+SeparationRayShape created RID(1057)

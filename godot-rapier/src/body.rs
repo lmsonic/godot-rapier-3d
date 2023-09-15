@@ -25,6 +25,24 @@ pub struct RapierBody {
     state: State,
     constant_force: Vector3,
     constant_torque: Vector3,
+    state_callback: Callable,
+}
+
+impl RapierBody {
+    pub fn set_state_callback(&mut self, state_callback: Callable) {
+        self.state_callback = state_callback;
+    }
+
+    pub fn flush_queries(&self) {
+        if self.state_callback.is_valid() {
+            // let direct_state = body.share().upcast::<PhysicsDirectBodyState3D>();
+            // callback.callv(array![direct_state.to_variant()]);
+        }
+    }
+
+    pub fn rid(&self) -> Rid {
+        self.rid
+    }
 }
 
 struct State {
@@ -182,6 +200,7 @@ impl RapierBody {
             state: State::default(),
             constant_force: Vector3::default(),
             constant_torque: Vector3::default(),
+            state_callback: Callable::invalid(),
         }
     }
 

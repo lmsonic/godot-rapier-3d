@@ -9,7 +9,6 @@ crate-type = ["cdylib"]
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 rapier3d = { version = "0.17.2", features = ["simd-stable"] }
-thiserror = "1.0.44"
 
 [profile.dev.package.rapier3d]
 opt-level = 3

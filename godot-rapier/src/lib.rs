@@ -1,4 +1,38 @@
+#![warn(
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::dbg_macro,
+    clippy::empty_structs_with_brackets,
+    clippy::float_cmp_const,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::shadow_unrelated,
+    clippy::use_debug,
+    clippy::wildcard_dependencies,
+    clippy::exit,
+    clippy::todo,
+    clippy::mem_forget,
+    clippy::rc_mutex,
+    clippy::rest_pat_in_fully_bound_structs,
+    clippy::string_add,
+    clippy::string_to_string,
+    clippy::unimplemented,
+    clippy::verbose_file_reads,
+    future_incompatible,
+    nonstandard_style,
+    rust_2018_idioms,
+    unused_crate_dependencies,
+    unused_extern_crates,
+    unused_import_braces,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    non_ascii_idents,
+    noop_method_call,
+    //missing_docs,
+    //clippy::missing_docs_in_private_items
+)]
 #![allow(clippy::module_name_repetitions)]
+
 use godot::{
     engine::PhysicsServer3DManager, init::EditorRunBehavior, prelude::*,
     private::class_macros::auto_register_classes,
@@ -7,22 +41,17 @@ use physics_server_3d::RapierPhysicsServer3D;
 
 struct RapierPhysics;
 
+mod physics_server_3d;
+
 mod area;
 mod body;
 mod collision_object;
-mod conversions;
-mod direct_body_state_3d;
-mod direct_space_state_3d;
-mod error;
-mod joint;
-mod physics_server_3d;
-mod physics_server_3d_utils;
 mod shapes;
 mod space;
 
 #[derive(GodotClass)]
 #[class(base=Object,init)]
-pub struct ServerInitializer;
+struct ServerInitializer;
 
 #[godot_api]
 impl ServerInitializer {
@@ -44,7 +73,7 @@ impl ServerLayer {
 
 impl ExtensionLayer for ServerLayer {
     fn initialize(&mut self) {
-        crate::auto_register_classes();
+        auto_register_classes();
         let mut manager = PhysicsServer3DManager::singleton();
         let initializer = Gd::<ServerInitializer>::new_default();
         manager.register_server("Rapier3D".into(), initializer.callable("create_server"));
@@ -58,6 +87,14 @@ impl ExtensionLayer for ServerLayer {
     }
 }
 
+struct SceneLayer;
+impl ExtensionLayer for SceneLayer {
+    fn initialize(&mut self) {
+        auto_register_classes();
+    }
+
+    fn deinitialize(&mut self) {}
+}
 #[gdextension]
 unsafe impl ExtensionLibrary for RapierPhysics {
     fn load_library(handle: &mut InitHandle) -> bool {

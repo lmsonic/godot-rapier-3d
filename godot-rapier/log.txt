@@ -1,0 +1,95 @@
+Initialize GDExtension API for Rust: Godot Engine v4.1.1.stable.official
+Godot Engine v4.1.1.stable.official.bd6af8e0e - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Vulkan devices:
+  #0: NVIDIA NVIDIA GeForce RTX 3060 Laptop GPU - Supported, Discrete
+  #1: Intel Intel(R) UHD Graphics - Supported, Integrated
+Vulkan API 1.3.224 - Forward+ - Using Vulkan Device #0: NVIDIA - NVIDIA GeForce RTX 3060 Laptop GPU
+Optional extension VK_KHR_incremental_present not found
+Optional extension VK_GOOGLE_display_timing not found
+- Vulkan Variable Rate Shading supported:
+  Pipeline fragment shading rate
+  Primitive fragment shading rate
+  Attachment fragment shading rate, min texel size: (16, 16), max texel size: (16, 16)
+- Vulkan multiview supported:
+  max view count: 32
+  max instances: 134217727
+- Vulkan subgroup:
+  size: 32
+  stages: STAGE_VERTEX, STAGE_TESSELLATION_CONTROL, STAGE_TESSELLATION_EVALUATION, STAGE_GEOMETRY, STAGE_FRAGMENT, STAGE_COMPUTE, STAGE_RAYGEN_KHR, STAGE_ANY_HIT_KHR, STAGE_CLOSEST_HIT_KHR, STAGE_MISS_KHR, STAGE_INTERSECTION_KHR, STAGE_CALLABLE_KHR, STAGE_TASK_NV, STAGE_MESH_NV
+  supported ops: FEATURE_BASIC, FEATURE_VOTE, FEATURE_ARITHMETIC, FEATURE_BALLOT, FEATURE_SHUFFLE, FEATURE_SHUFFLE_RELATIVE, FEATURE_CLUSTERED, FEATURE_QUAD, FEATURE_PARTITIONED_NV
+  quad operations in all stages
+Startup PSO cache (4.1 MiB)
+Using "wintab" pen tablet driver...
+Creating VMA small objects pool for memory type index 1
+Shader 'CanvasSdfShaderRD' SHA256: 884841f2ed8f766f2ec50c7630bc034ee802170ea7afe00146eb9b501b6fe106
+Shader 'SkeletonShaderRD' SHA256: 6bc2f8ef4b30b454ed825eb79818637020c3967eb512a04a9303e91d48c80a26
+Shader 'SortShaderRD' SHA256: 412ea376207f1c650aff670638c1ba8c6602e7c6e2d023346389f03c9b898070
+Shader 'ParticlesShaderRD' SHA256: f7ab6ccfa252be89882edb865a0c044053c5e338929dd6e1fa9e48d94dd7c7ac
+Shader 'ParticlesCopyShaderRD' SHA256: 91b875446f6cb83730ece374de0d55df2b19a73640dea924f46a7da75d458103
+Shader 'CanvasShaderRD' SHA256: 02e4d4e394d4d4d356a6056446b2ad3dce4a260af01de389e37159cb2919c0e3
+Shader 'CanvasOcclusionShaderRD' SHA256: 7056555b40140d5d4fa7f634d9107d9b0c53f4988a9c267b12ecb2e9b79339bb
+Shader 'ClusterRenderShaderRD' SHA256: e74d7eb7e8fa11d868ae9c77ed87e621549a85cc19907efda2cb9022010f3106
+Shader 'ClusterStoreShaderRD' SHA256: a1146ca823067431cc78e070a0bd512d7ae5e62190b7eed5e125f96b4c0a53af
+Shader 'ClusterDebugShaderRD' SHA256: 83e2437dfe07b95ac1d67c650fdf23af6a1484610816c522994f8fa9087daffd
+Shader 'SceneForwardClusteredShaderRD' SHA256: 5a630ea5a33829193ef3a40dc4da0e39f17ce3a8c77e8a7ac789b99982144f61
+Shader 'ResolveShaderRD' SHA256: cc90a4f2c705e3b20d9ba19a096b54e5619fe6298f485b98cb306c4e44aa9453
+Shader 'TaaResolveShaderRD' SHA256: c3bd50ff28d1cf5a593920485472694b75e875312c00725c52aa1df0d3b35873
+Shader 'SsEffectsDownsampleShaderRD' SHA256: 0dbb53e60c94a8c7d7e1bb8c962ad9a6f0fc293216fefa1fc1ea37a44d86fca7
+Shader 'SsilShaderRD' SHA256: 63e628cfc12381799deefc60bf50552d4a7640aa10cf63fdf84ea93ea541c381
+Shader 'SsilImportanceMapShaderRD' SHA256: c55b0b2baba2646a0f7567009b05e7acbfa335524a3f3683c0423d6a6a94ccd5
+Shader 'SsilBlurShaderRD' SHA256: b2450b00ea26280e666a522dc687d39a8227f51fdf6b029597085b8d6ea6a2bf
+Shader 'SsilInterleaveShaderRD' SHA256: d69b6050309243f6ef74b5603f008a6bf8330e4b3f0354b97bcbcc9c95703be3
+Shader 'SsaoShaderRD' SHA256: 0937c03d70e85899b90dc34a45f5bd9822b73fec1566e922af3d6c062ef9088b
+Shader 'SsaoImportanceMapShaderRD' SHA256: 56fd96198277dfa0f36f517803c0a9ce7472d25bab97ffd36a2b15c0ff1d15a4
+Shader 'SsaoBlurShaderRD' SHA256: 8f23836971ceb8d5fef4c302502d7e02b8042e1004ef87274bb8b04fab8e19f7
+Shader 'SsaoInterleaveShaderRD' SHA256: 8cdb821e9772807c355e880e986eb644062eab1ae9dc8ff42db59e7cac89352e
+Shader 'ScreenSpaceReflectionScaleShaderRD' SHA256: cd61b242ea431a009a3b8b5010af05b7ffddd05ca5cd4d10486dad2803485f95
+Shader 'ScreenSpaceReflectionShaderRD' SHA256: faa60f35e2f91f1715cb0e42d2050709fe742de5d72eabb37f9985333796be23
+Shader 'ScreenSpaceReflectionFilterShaderRD' SHA256: 7a6a4769c4fc15e126e986bb7474257b7c90114042b87634f62bb4bd78e5df22
+Shader 'SubsurfaceScatteringShaderRD' SHA256: 3a47474ea41c1ab67d56e550848f41927a2d67d2e1de4084970e48c587da9d47
+Shader 'SkyShaderRD' SHA256: 3d7c408289bf826aba9dc433d32ba4c2bd222f07deb2921211ba48eac26fd9d6
+Shader 'VoxelGiShaderRD' SHA256: fb1baf448be34295af6c42c77af446b2458932650f5d00ce923194c4d9265131
+Shader 'VoxelGiDebugShaderRD' SHA256: 271f62d84e02344b9219f7186517599d17e3b18a27efb630f7960cf4557f68cd
+Shader 'SdfgiPreprocessShaderRD' SHA256: bf9eab12054600f8af2280218756be8d78c3656fdef410d83214273d932ac06d
+Shader 'SdfgiDirectLightShaderRD' SHA256: a006ba392117c4f3162292685a0476b64904e17d08cbfffb735554a60b7995f5
+Shader 'SdfgiIntegrateShaderRD' SHA256: 49652bfbb10cff2d39a9c687b49d889ba799600982310b4e5e977f66ff13fc4d
+Shader 'GiShaderRD' SHA256: e6582f64a59916025380009594f2fcd5c9d22525b3a7d3caad1e11bd38b56d09
+Shader 'SdfgiDebugShaderRD' SHA256: 27cdb15febab97223a8e2c16d840cc50e7a652af374eec9ce7765d6d1cac21fa
+Shader 'SdfgiDebugProbesShaderRD' SHA256: 3b48c587869d005dd5b942933181bee46a4dc441829670585dc39bb9e4458ce7
+Shader 'VolumetricFogShaderRD' SHA256: 64171d81af1f283f227db68cac873686fbf672b73f2a504a3d967a5df51fafe7
+Shader 'VolumetricFogProcessShaderRD' SHA256: 195852f319852f883dd2a4ba0b6f5cc5c3944daa9855f317d03498bb2ad2351f
+Shader 'BokehDofShaderRD' SHA256: 740231f9184e30b53261c38e375c4c8c10b9970d370ba5012b655652f91c4124
+Shader 'CopyShaderRD' SHA256: 207a7c8aa7fd8380cac15be4492cc2ec40b0b60da59e2bc7f9e00e700a6ef504
+Shader 'CopyToFbShaderRD' SHA256: 9df1b2798f0817a2808802d4571852bc2392ae4c17bd8718b77a7e6ab6771356
+Shader 'CubeToDpShaderRD' SHA256: 4933c20de143e376182a3823bc5aba3697964d0d244feb80d739ee73b527c9f4
+Shader 'CubemapDownsamplerShaderRD' SHA256: 1476944f77adc4764c57ec91ee47d0c95dc0abd28cd6b6ae525dd04ea3e173aa
+Shader 'CubemapFilterShaderRD' SHA256: f17f17bd1ffca0619464e706e0c7c0600b70291584fce577f41c103af9b1f9ff
+Shader 'CubemapRoughnessShaderRD' SHA256: a7daf7eb929f5f743f35ad608b9ffa353b7dda2bf7ec66c3e088d9cd6fa957ef
+Shader 'SpecularMergeShaderRD' SHA256: c6c4f2797a84a99cf42df508bdd4e026e53dbd67370214e4d536794687458926
+Shader 'LuminanceReduceShaderRD' SHA256: ea366273aa1ae3cfbaf5b0d808a0d54fd64450cc41b6e7e0ac72a15d294bda82
+Shader 'TonemapShaderRD' SHA256: f0c47d5cefe95675f0e641e28994970040cc37f5261113c6b95258acadbb7cc7
+Shader 'VrsShaderRD' SHA256: da7b324ded4d06c2f1bcc4d484da79033119a41f10de5f48aec6c8eecbd870bd
+Shader 'FsrUpscaleShaderRD' SHA256: 0c0a86c5ad302cf49577e51bec76a1e7d48dc221d8bbda0c1c366a380b7d1b4d
+Shader 'BlitShaderRD' SHA256: e5047fcefa30442783be734705aed10b8020504a66f92f63ed86bdf34970cde1
+WASAPI: Activated output_device using IAudioClient3 interface
+WASAPI: wFormatTag = 65534
+WASAPI: nChannels = 2
+WASAPI: nSamplesPerSec = 48000
+WASAPI: nAvgBytesPerSec = 384000
+WASAPI: nBlockAlign = 8
+WASAPI: wBitsPerSample = 32
+WASAPI: cbSize = 22
+WASAPI: mix_rate = 48000
+WASAPI: fundamental_period_frames = 480
+WASAPI: min_period_frames = 480
+WASAPI: max_period_frames = 480
+WASAPI: selected a period frame size of 480
+WASAPI: detected 2 channels
+WASAPI: audio buffer frames: 480 calculated latency: 10ms
+ 
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+CORE API HASH: 3144975361
+EDITOR API HASH: 3555714656
+Regenerating editor help cache

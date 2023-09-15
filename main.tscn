@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://cu7w8my42ums0"]
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_kfq5g"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_qqtwh"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_xou4o"]
 
@@ -9,7 +9,7 @@
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
-shape = SubResource("SphereShape3D_kfq5g")
+shape = SubResource("SphereShape3D_qqtwh")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
 mesh = SubResource("SphereMesh_xou4o")

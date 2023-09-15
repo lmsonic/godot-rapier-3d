@@ -2,34 +2,34 @@ use godot::prelude::*;
 
 use super::RapierShape;
 
-pub struct SeparationRayShape {
+pub struct ConcavePolygonShape {
     rid: Rid,
-    length: f32,
-    slide_on_slope: bool,
+    backface_collision: bool,
+    faces: PackedVector3Array,
     owners: Vec<Rid>,
 }
 
-impl SeparationRayShape {
-    pub const fn new(rid: Rid) -> Self {
+impl ConcavePolygonShape {
+    pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            length: 0.0,
-            slide_on_slope: false,
+            backface_collision: false,
+            faces: PackedVector3Array::default(),
             owners: vec![],
         }
     }
 }
 
-impl RapierShape for SeparationRayShape {
+impl RapierShape for ConcavePolygonShape {
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Dictionary>() {
             Ok(d) => {
-                match d.get_or_nil("length").try_to::<f32>() {
-                    Ok(length) => self.length = length,
+                match d.get_or_nil("backface_collision").try_to::<bool>() {
+                    Ok(value) => self.backface_collision = value,
                     Err(e) => godot_error!("{:?}", e),
-                };
-                match d.get_or_nil("slide_on_slope").try_to::<bool>() {
-                    Ok(value) => self.slide_on_slope = value,
+                }
+                match d.get_or_nil("faces").try_to::<PackedVector3Array>() {
+                    Ok(vertices) => self.faces = vertices,
                     Err(e) => godot_error!("{:?}", e),
                 };
             }
@@ -38,13 +38,14 @@ impl RapierShape for SeparationRayShape {
     }
 
     fn get_shape_type(&self) -> godot::engine::physics_server_3d::ShapeType {
-        godot::engine::physics_server_3d::ShapeType::SHAPE_SEPARATION_RAY
+        godot::engine::physics_server_3d::ShapeType::SHAPE_CONCAVE_POLYGON
     }
 
     fn get_data(&self) -> godot::prelude::Variant {
-        Variant::from(dict! {"length":self.length,"slide_on_slope":self.slide_on_slope})
+        Variant::from(dict! {
+            "faces" : self.faces.clone(), "backface_collision":self.backface_collision,
+        })
     }
-
     fn add_owner(&mut self, owner: Rid) {
         self.owners.push(owner);
     }

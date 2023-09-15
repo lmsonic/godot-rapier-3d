@@ -1,82 +1,58 @@
-use std::{cell::RefCell, rc::Rc};
-
-use godot::prelude::{math::ApproxEq, *};
-use rapier3d::prelude::*;
-
-use crate::collision_object::RapierCollisionObject;
+use godot::prelude::*;
 
 use super::RapierShape;
-pub struct RapierBoxShape {
-    shape: Cuboid,
-    owners: Vec<Rc<RefCell<dyn RapierCollisionObject>>>,
+
+pub struct BoxShape {
     rid: Rid,
+    half_extents: Vector3,
     margin: f32,
+    owners: Vec<Rid>,
 }
 
-impl RapierBoxShape {
+impl BoxShape {
     pub fn new(rid: Rid) -> Self {
         Self {
-            shape: Cuboid::new(vector![0.5, 0.5, 0.5]),
-            owners: vec![],
             rid,
+            half_extents: Vector3::default(),
             margin: 0.0,
+            owners: vec![],
         }
     }
 }
 
-impl RapierShape for RapierBoxShape {
-    fn data(&self) -> Variant {
-        Variant::from(Vector3::new(
-            self.shape.half_extents.x,
-            self.shape.half_extents.y,
-            self.shape.half_extents.z,
-        ))
-    }
-
-    fn set_data(&mut self, data: Variant) {
+impl RapierShape for BoxShape {
+    fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Vector3>() {
-            Ok(half_extents) => {
-                let new_half_extents = vector![half_extents.x, half_extents.y, half_extents.z];
-                if new_half_extents != self.shape.half_extents {
-                    self.shape.half_extents = new_half_extents;
-                    self.update_owners();
-                }
-            }
+            Ok(half_extents) => self.half_extents = half_extents,
             Err(err) => godot_error!("{:?}", err),
         };
     }
-    fn shared_shape(&self, scale: Vector<f32>) -> SharedShape {
-        if self.margin.is_zero_approx() {
-            SharedShape::new(self.shape.scaled(&scale))
-        } else {
-            SharedShape::new(RoundCuboid {
-                inner_shape: self.shape.scaled(&scale),
-                border_radius: self.margin,
-            })
-        }
-    }
 
-    fn rid(&self) -> Rid {
-        self.rid
-    }
-    fn owners(&self) -> &Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
-        &self.owners
-    }
-    fn owners_mut(&mut self) -> &mut Vec<Rc<RefCell<dyn RapierCollisionObject>>> {
-        &mut self.owners
-    }
-    fn get_type(&self) -> godot::engine::physics_server_3d::ShapeType {
+    fn get_shape_type(&self) -> godot::engine::physics_server_3d::ShapeType {
         godot::engine::physics_server_3d::ShapeType::SHAPE_BOX
     }
 
-    fn set_margin(&mut self, margin: f32) {
-        if margin.approx_eq(&self.margin) {
-            self.margin = margin;
-            self.update_owners();
-        }
+    fn get_data(&self) -> godot::prelude::Variant {
+        Variant::from(self.half_extents)
     }
 
-    fn margin(&self) -> f32 {
+    fn set_margin(&mut self, margin: f32) {
+        self.margin = margin;
+    }
+
+    fn get_margin(&self) -> f32 {
         self.margin
+    }
+
+    fn add_owner(&mut self, owner: Rid) {
+        self.owners.push(owner);
+    }
+
+    fn remove_owner(&mut self, owner: Rid) {
+        self.owners.retain(|o| *o != owner);
+    }
+
+    fn owners(&self) -> &[Rid] {
+        self.owners.as_ref()
     }
 }

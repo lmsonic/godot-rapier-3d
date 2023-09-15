@@ -39,6 +39,8 @@ use godot::{
 };
 use physics_server_3d::RapierPhysicsServer3D;
 
+struct RapierPhysics;
+
 mod physics_server_3d;
 
 mod area;
@@ -58,26 +60,48 @@ impl ServerInitializer {
         Gd::<RapierPhysicsServer3D>::new_default()
     }
 }
-struct RapierPhysics;
-#[gdextension]
-unsafe impl ExtensionLibrary for RapierPhysics {
-    fn editor_run_behavior() -> EditorRunBehavior {
-        EditorRunBehavior::AllClasses
+
+struct ServerLayer {
+    initializer: Option<Gd<ServerInitializer>>,
+}
+
+impl ServerLayer {
+    const fn new() -> Self {
+        Self { initializer: None }
+    }
+}
+
+impl ExtensionLayer for ServerLayer {
+    fn initialize(&mut self) {
+        auto_register_classes();
+        let mut manager = PhysicsServer3DManager::singleton();
+        let initializer = Gd::<ServerInitializer>::new_default();
+        manager.register_server("Rapier3D".into(), initializer.callable("create_server"));
+        self.initializer = Some(initializer);
     }
 
-    fn min_level() -> InitLevel {
-        InitLevel::Servers
-    }
-
-    fn on_level_init(level: InitLevel) {
-        if level == InitLevel::Servers {
-            let mut manager = PhysicsServer3DManager::singleton();
-            let initializer = Gd::<ServerInitializer>::new_default();
-            manager.register_server("Rapier3D".into(), initializer.callable("create_server"));
+    fn deinitialize(&mut self) {
+        if let Some(initializer) = self.initializer.take() {
+            initializer.free();
         }
     }
+}
 
-    fn on_level_deinit(_level: InitLevel) {
-        // Nothing by default.
+struct SceneLayer;
+impl ExtensionLayer for SceneLayer {
+    fn initialize(&mut self) {
+        auto_register_classes();
+    }
+
+    fn deinitialize(&mut self) {}
+}
+#[gdextension]
+unsafe impl ExtensionLibrary for RapierPhysics {
+    fn load_library(handle: &mut InitHandle) -> bool {
+        handle.register_layer(InitLevel::Servers, ServerLayer::new());
+        true
+    }
+    fn editor_run_behavior() -> EditorRunBehavior {
+        EditorRunBehavior::AllClasses
     }
 }

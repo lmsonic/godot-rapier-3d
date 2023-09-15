@@ -11,6 +11,7 @@ use godot::engine::{
 };
 use godot::prelude::utilities::{rid_allocate_id, rid_from_int64};
 use godot::prelude::*;
+use rapier3d::prelude::*;
 
 use crate::area::RapierArea;
 use crate::body::RapierBody;
@@ -25,7 +26,7 @@ use crate::shapes::{
 use crate::space::RapierSpace;
 
 #[derive(GodotClass, Default)]
-#[class(base=PhysicsServer3DExtension,init,tool)]
+#[class(base=PhysicsServer3DExtension,init)]
 pub struct RapierPhysicsServer3D {
     shapes: HashMap<Rid, Box<dyn RapierShape>>,
     spaces: HashMap<Rid, Gd<RapierSpace>>,
@@ -867,11 +868,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         Default::default()
     }
 
-    fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {
-        if let Some(body) = self.bodies.get_mut(&body) {
-            body.bind_mut().set_state_callback(callable);
-        }
-    }
+    fn body_set_state_sync_callback(&mut self, body: Rid, callable: Callable) {}
 
     fn body_set_force_integration_callback(
         &mut self,
@@ -1216,16 +1213,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         Default::default()
     }
 
-    fn free_rid(&mut self, rid: Rid) {
-        if self.areas.remove(&rid).is_some() || self.shapes.remove(&rid).is_some() {
-        } else if let Some(space) = self.spaces.remove(&rid) {
-            space.free();
-        } else if let Some(body) = self.bodies.remove(&rid) {
-            body.free();
-        } else {
-            godot_error!("Failed to free RID: The specified {} has no owner.", rid);
-        }
-    }
+    fn free_rid(&mut self, rid: Rid) {}
 
     fn set_active(&mut self, active: bool) {}
 
@@ -1235,11 +1223,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
 
     fn sync(&mut self) {}
 
-    fn flush_queries(&mut self) {
-        for body in self.bodies.values() {
-            body.bind().flush_queries();
-        }
-    }
+    fn flush_queries(&mut self) {}
 
     fn end_sync(&mut self) {}
 

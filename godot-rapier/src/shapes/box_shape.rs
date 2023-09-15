@@ -1,4 +1,5 @@
-use godot::prelude::*;
+use godot::prelude::{math::ApproxEq, *};
+use rapier3d::prelude::ColliderBuilder;
 
 use super::RapierShape;
 
@@ -21,6 +22,25 @@ impl BoxShape {
 }
 
 impl RapierShape for BoxShape {
+    fn collider(&self) -> ColliderBuilder {
+        if self.margin.is_zero_approx() {
+            ColliderBuilder::cuboid(
+                self.half_extents.x,
+                self.half_extents.y,
+                self.half_extents.z,
+            )
+        } else {
+            ColliderBuilder::round_cuboid(
+                self.half_extents.x,
+                self.half_extents.y,
+                self.half_extents.z,
+                self.margin,
+            )
+        }
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Vector3>() {
             Ok(half_extents) => self.half_extents = half_extents,

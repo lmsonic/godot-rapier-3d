@@ -1,4 +1,7 @@
 use godot::prelude::*;
+use rapier3d::prelude::{ColliderBuilder, UnitVector};
+
+use crate::utils::IntoExt;
 
 use super::RapierShape;
 
@@ -18,6 +21,13 @@ impl WorldBoundaryShape {
 }
 
 impl RapierShape for WorldBoundaryShape {
+    fn collider(&self) -> ColliderBuilder {
+        let normal = UnitVector::new_normalize(self.plane.normal.into_ext());
+        ColliderBuilder::halfspace(normal)
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Plane>() {
             Ok(plane) => self.plane = plane,

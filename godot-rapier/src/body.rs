@@ -1,10 +1,11 @@
 use godot::{
     engine::{
-        physics_server_3d::{BodyDampMode, BodyMode, BodyParameter, BodyState},
+        physics_server_3d::{BodyAxis, BodyDampMode, BodyMode, BodyParameter, BodyState},
         PhysicsDirectBodyState3DExtensionVirtual, PhysicsDirectSpaceState3D,
     },
     prelude::*,
 };
+use rapier3d::prelude::RigidBodyHandle;
 
 use crate::{collision_object::RapierCollisionObject, shapes::ShapeInstance, space::RapierSpace};
 
@@ -13,26 +14,28 @@ use crate::{collision_object::RapierCollisionObject, shapes::ShapeInstance, spac
 pub struct RapierBody {
     rid: Rid,
     space: Option<Gd<RapierSpace>>,
-    body_mode: BodyMode,
-    shapes: Vec<ShapeInstance>,
-    instance_id: Option<u64>,
-    collision_layer: u32,
-    collision_mask: u32,
-    ccd_enabled: bool,
-    priority: f32,
-    user_flags: u32,
-    params: BodyParams,
-    state: State,
-    constant_force: Vector3,
-    constant_torque: Vector3,
+    handle: Option<RigidBodyHandle>,
+    pub body_mode: BodyMode,
+    pub shapes: Vec<ShapeInstance>,
+    pub instance_id: Option<u64>,
+    pub collision_layer: u32,
+    pub collision_mask: u32,
+    pub ccd_enabled: bool,
+    pub priority: f32,
+    pub user_flags: u32,
+    pub params: BodyParams,
+    pub state: State,
+    pub constant_force: Vector3,
+    pub constant_torque: Vector3,
+    pub axis_locked: AxisLocked,
 }
 
-struct State {
-    transform: Transform3D,
-    linear_velocity: Vector3,
-    angular_velocity: Vector3,
-    is_sleeping: bool,
-    can_sleep: bool,
+pub struct State {
+    pub transform: Transform3D,
+    pub linear_velocity: Vector3,
+    pub angular_velocity: Vector3,
+    pub is_sleeping: bool,
+    pub can_sleep: bool,
 }
 
 impl Default for State {
@@ -70,17 +73,17 @@ impl State {
     }
 }
 
-struct BodyParams {
-    bounce: f32,
-    friction: f32,
-    mass: f32,
-    inertia: Vector3,
-    center_of_mass_local: Vector3,
-    gravity_scale: f32,
-    linear_damp_mode: BodyDampMode,
-    angular_damp_mode: BodyDampMode,
-    linear_damp: f32,
-    angular_damp: f32,
+pub struct BodyParams {
+    pub bounce: f32,
+    pub friction: f32,
+    pub mass: f32,
+    pub inertia: Vector3,
+    pub center_of_mass_local: Vector3,
+    pub gravity_scale: f32,
+    pub linear_damp_mode: BodyDampMode,
+    pub angular_damp_mode: BodyDampMode,
+    pub linear_damp: f32,
+    pub angular_damp: f32,
 }
 
 impl Default for BodyParams {
@@ -134,6 +137,41 @@ impl BodyParams {
     }
 }
 
+#[derive(Default)]
+pub struct AxisLocked {
+    pub linear_x: bool,
+    pub linear_y: bool,
+    pub linear_z: bool,
+    pub angular_x: bool,
+    pub angular_y: bool,
+    pub angular_z: bool,
+}
+
+impl AxisLocked {
+    pub fn set(&mut self, axis: BodyAxis, locked: bool) {
+        match axis {
+            BodyAxis::BODY_AXIS_LINEAR_X => self.linear_x = locked,
+            BodyAxis::BODY_AXIS_LINEAR_Y => self.linear_y = locked,
+            BodyAxis::BODY_AXIS_LINEAR_Z => self.linear_z = locked,
+            BodyAxis::BODY_AXIS_ANGULAR_X => self.angular_x = locked,
+            BodyAxis::BODY_AXIS_ANGULAR_Y => self.angular_y = locked,
+            BodyAxis::BODY_AXIS_ANGULAR_Z => self.angular_z = locked,
+            _ => {}
+        }
+    }
+    pub const fn get(&self, axis: BodyAxis) -> bool {
+        match axis {
+            BodyAxis::BODY_AXIS_LINEAR_X => self.linear_x,
+            BodyAxis::BODY_AXIS_LINEAR_Y => self.linear_y,
+            BodyAxis::BODY_AXIS_LINEAR_Z => self.linear_z,
+            BodyAxis::BODY_AXIS_ANGULAR_X => self.angular_x,
+            BodyAxis::BODY_AXIS_ANGULAR_Y => self.angular_y,
+            BodyAxis::BODY_AXIS_ANGULAR_Z => self.angular_z,
+            _ => false,
+        }
+    }
+}
+
 impl RapierCollisionObject for RapierBody {
     fn shapes(&self) -> &[ShapeInstance] {
         &self.shapes
@@ -182,6 +220,8 @@ impl RapierBody {
             state: State::default(),
             constant_force: Vector3::default(),
             constant_torque: Vector3::default(),
+            axis_locked: AxisLocked::default(),
+            handle: None,
         }
     }
 
@@ -189,8 +229,9 @@ impl RapierBody {
         self.space.as_ref()
     }
 
-    pub fn set_space(&mut self, space: Gd<RapierSpace>) {
+    pub fn set_space(&mut self, space: Gd<RapierSpace>, handle: RigidBodyHandle) {
         self.space = Some(space);
+        self.handle = Some(handle);
     }
 
     pub const fn get_body_mode(&self) -> BodyMode {
@@ -241,8 +282,14 @@ impl RapierBody {
     pub fn set_state(&mut self, param: BodyState, value: Variant) {
         self.state.set(param, value);
     }
-    pub fn get_position(&self) -> Vector3 {
+    pub const fn get_position(&self) -> Vector3 {
         self.state.transform.origin
+    }
+    pub const fn is_axis_locked(&self, param: BodyAxis) -> bool {
+        self.axis_locked.get(param)
+    }
+    pub fn set_axis_locked(&mut self, param: BodyAxis, locked: bool) {
+        self.axis_locked.set(param, locked);
     }
 }
 

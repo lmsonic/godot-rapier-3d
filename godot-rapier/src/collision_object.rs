@@ -16,6 +16,9 @@ pub trait RapierCollisionObject {
         let old_shape = self.shapes_mut().remove(shape_idx as usize);
         old_shape.shape
     }
+    fn remove_shape_rid(&mut self, rid: Rid) {
+        self.shapes_mut().retain(|s| s.shape != rid);
+    }
     #[must_use]
     fn clear_shapes(&mut self) -> Vec<Rid> {
         let old_shapes = self.shapes().iter().map(|s| s.shape).collect();

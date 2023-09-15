@@ -33,6 +33,8 @@ pub struct RapierPhysicsServer3D {
     active_spaces: HashSet<Rid>,
     areas: HashMap<Rid, RapierArea>,
     bodies: HashMap<Rid, Gd<RapierBody>>,
+
+    active: bool,
 }
 
 #[inline]
@@ -334,17 +336,19 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
 
     fn area_set_space(&mut self, area: Rid, space: Rid) {
-        if !self.has_space(space) {
-            return;
-        }
-        if let Some(area) = self.get_area_mut(area) {
-            area.set_space(space);
+        if let Some(space) = self.spaces.get_mut(&space) {
+            if let Some(area) = self.areas.get_mut(&area) {
+                space.bind_mut().add_area(area);
+                area.set_space(space.share());
+            }
         }
     }
 
     fn area_get_space(&self, area: Rid) -> Rid {
         if let Some(area) = self.get_area(area) {
-            return area.get_space();
+            if let Some(space) = area.get_space() {
+                return space.bind().rid();
+            }
         }
         Rid::Invalid
     }
@@ -533,13 +537,11 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
 
     fn body_set_space(&mut self, body: Rid, space: Rid) {
-        let space = if let Some(space) = self.get_space_mut(space) {
-            space.share()
-        } else {
-            return;
-        };
-        if let Some(body) = self.get_body_mut(body) {
-            body.bind_mut().set_space(space);
+        if let Some(space) = self.spaces.get_mut(&space) {
+            if let Some(body) = self.bodies.get_mut(&body) {
+                let handle = space.bind_mut().add_body(body);
+                body.bind_mut().set_space(space.share(), handle);
+            }
         }
     }
 
@@ -836,10 +838,17 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
 
     fn body_set_axis_velocity(&mut self, body: Rid, axis_velocity: Vector3) {}
 
-    fn body_set_axis_lock(&mut self, body: Rid, axis: BodyAxis, lock: bool) {}
+    fn body_set_axis_lock(&mut self, body: Rid, axis: BodyAxis, lock: bool) {
+        if let Some(body) = self.get_body_mut(body) {
+            body.bind_mut().set_axis_locked(axis, lock);
+        }
+    }
 
     fn body_is_axis_locked(&self, body: Rid, axis: BodyAxis) -> bool {
-        Default::default()
+        if let Some(body) = self.get_body(body) {
+            return body.bind().is_axis_locked(axis);
+        }
+        false
     }
 
     fn body_add_collision_exception(&mut self, body: Rid, excepted_body: Rid) {}
@@ -895,7 +904,10 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
     }
 
     fn body_get_direct_state(&mut self, body: Rid) -> Option<Gd<PhysicsDirectBodyState3D>> {
-        Option::default()
+        if let Some(body) = self.get_body(body) {
+            return Some(body.share().upcast());
+        }
+        None
     }
 
     fn soft_body_create(&mut self) -> Rid {
@@ -1213,13 +1225,41 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         Default::default()
     }
 
-    fn free_rid(&mut self, rid: Rid) {}
+    fn free_rid(&mut self, rid: Rid) {
+        if let Some(shape) = self.shapes.remove(&rid) {
+            for body in self.bodies.values_mut() {
+                body.bind_mut().remove_shape_rid(rid);
+            }
+            for area in self.areas.values_mut() {
+                area.remove_shape_rid(rid);
+            }
+        } else if let Some(body) = self.bodies.remove(&rid) {
+            body.free();
+        } else if let Some(area) = self.areas.remove(&rid) {
+        } else if let Some(space) = self.spaces.remove(&rid) {
+            space.free();
+            self.active_spaces.remove(&rid);
+        } else {
+            godot_error!("Failed to free RID: The specified {} has no owner.", rid);
+        }
+    }
 
-    fn set_active(&mut self, active: bool) {}
+    fn set_active(&mut self, active: bool) {
+        self.active = active;
+    }
 
     fn init_ext(&mut self) {}
 
-    fn step(&mut self, step: f32) {}
+    fn step(&mut self, step: f32) {
+        if !self.active {
+            return;
+        }
+        for space in &self.active_spaces {
+            if let Some(space) = self.spaces.get_mut(space) {
+                space.bind_mut().step();
+            }
+        }
+    }
 
     fn sync(&mut self) {}
 

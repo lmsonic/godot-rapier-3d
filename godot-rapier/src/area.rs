@@ -4,11 +4,11 @@ use godot::{
     prelude::*,
 };
 
-use crate::{collision_object::RapierCollisionObject, shapes::ShapeInstance};
+use crate::{collision_object::RapierCollisionObject, shapes::ShapeInstance, space::RapierSpace};
 
 pub struct RapierArea {
     rid: Rid,
-    space: Rid,
+    space: Option<Gd<RapierSpace>>,
     shapes: Vec<ShapeInstance>,
     instance_id: Option<u64>,
     params: AreaParams,
@@ -176,7 +176,7 @@ impl RapierArea {
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            space: Rid::Invalid,
+            space: None,
             shapes: vec![],
             instance_id: None,
             params: AreaParams::default(),
@@ -190,12 +190,12 @@ impl RapierArea {
         }
     }
 
-    pub fn set_space(&mut self, space: Rid) {
-        self.space = space;
+    pub const fn get_space(&self) -> Option<&Gd<RapierSpace>> {
+        self.space.as_ref()
     }
 
-    pub const fn get_space(&self) -> Rid {
-        self.space
+    pub fn set_space(&mut self, space: Gd<RapierSpace>) {
+        self.space = Some(space);
     }
 
     pub const fn rid(&self) -> Rid {

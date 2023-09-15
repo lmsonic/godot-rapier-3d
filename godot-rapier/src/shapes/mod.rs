@@ -1,4 +1,5 @@
 use godot::{engine::physics_server_3d::ShapeType, prelude::*};
+use rapier3d::prelude::ColliderBuilder;
 
 pub mod box_shape;
 pub mod capsule_shape;
@@ -28,6 +29,8 @@ impl ShapeInstance {
     }
 }
 pub trait RapierShape {
+    fn collider(&self) -> ColliderBuilder;
+    fn rid(&self) -> Rid;
     fn set_data(&mut self, data: Variant);
     fn set_custom_solver_bias(&mut self, _bias: f32) {
         godot_warn!(

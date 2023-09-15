@@ -1,4 +1,5 @@
 use godot::prelude::*;
+use rapier3d::prelude::ColliderBuilder;
 
 use super::RapierShape;
 
@@ -21,6 +22,12 @@ impl CapsuleShape {
 }
 
 impl RapierShape for CapsuleShape {
+    fn collider(&self) -> ColliderBuilder {
+        ColliderBuilder::capsule_y(self.height * 0.5, self.radius)
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Dictionary>() {
             Ok(d) => {

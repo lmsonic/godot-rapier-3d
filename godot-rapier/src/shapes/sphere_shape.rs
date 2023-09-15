@@ -1,4 +1,5 @@
 use godot::prelude::*;
+use rapier3d::prelude::ColliderBuilder;
 
 use super::RapierShape;
 
@@ -19,6 +20,12 @@ impl SphereShape {
 }
 
 impl RapierShape for SphereShape {
+    fn collider(&self) -> ColliderBuilder {
+        ColliderBuilder::ball(self.radius)
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<f32>() {
             Ok(radius) => self.radius = radius,

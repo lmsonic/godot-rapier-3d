@@ -1,4 +1,5 @@
 use godot::prelude::*;
+use rapier3d::prelude::ColliderBuilder;
 
 use super::RapierShape;
 
@@ -23,6 +24,16 @@ impl CylinderShape {
 }
 
 impl RapierShape for CylinderShape {
+    fn collider(&self) -> ColliderBuilder {
+        if self.margin.is_zero_approx() {
+            ColliderBuilder::cylinder(self.height * 0.5, self.radius)
+        } else {
+            ColliderBuilder::round_cylinder(self.height * 0.5, self.radius, self.margin)
+        }
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Dictionary>() {
             Ok(d) => {

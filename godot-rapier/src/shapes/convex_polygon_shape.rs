@@ -1,10 +1,11 @@
-use godot::prelude::*;
+use godot::prelude::{math::ApproxEq, *};
+use rapier3d::prelude::*;
 
 use super::RapierShape;
 
 pub struct ConvexPolygonShape {
     rid: Rid,
-    vertices: PackedVector3Array,
+    shape: ConvexPolyhedron,
     margin: f32,
     owners: Vec<Rid>,
 }
@@ -13,7 +14,12 @@ impl ConvexPolygonShape {
     pub fn new(rid: Rid) -> Self {
         Self {
             rid,
-            vertices: PackedVector3Array::default(),
+            shape: ConvexPolyhedron::from_convex_hull(&[
+                point![1.0, 0.0, 0.0],
+                point![0.0, 1.0, 0.0],
+                point![0.0, 0.0, 1.0],
+            ])
+            .unwrap(),
             margin: 0.0,
             owners: vec![],
         }
@@ -21,9 +27,34 @@ impl ConvexPolygonShape {
 }
 
 impl RapierShape for ConvexPolygonShape {
+    fn collider(&self) -> ColliderBuilder {
+        if self.margin.is_zero_approx() {
+            ColliderBuilder::new(SharedShape::new(self.shape.clone()))
+        } else {
+            ColliderBuilder::new(SharedShape::new(RoundShape {
+                inner_shape: self.shape.clone(),
+                border_radius: self.margin,
+            }))
+        }
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<PackedVector3Array>() {
-            Ok(vertices) => self.vertices = vertices,
+            Ok(vertices) => {
+                let vertices = vertices
+                    .to_vec()
+                    .iter()
+                    .map(|v| point![v.x, v.y, v.z])
+                    .collect::<Vec<Point<f32>>>();
+
+                if let Some(convex) = ConvexPolyhedron::from_convex_hull(&vertices) {
+                    self.shape = convex;
+                } else {
+                    godot_error!("ConvexPolygonShape {} is not convex", self.rid);
+                }
+            }
             Err(e) => godot_error!("{:?}", e),
         }
     }
@@ -32,8 +63,14 @@ impl RapierShape for ConvexPolygonShape {
         godot::engine::physics_server_3d::ShapeType::SHAPE_CONVEX_POLYGON
     }
 
-    fn get_data(&self) -> godot::prelude::Variant {
-        Variant::from(self.vertices.clone())
+    fn get_data(&self) -> Variant {
+        let vertices: Array<Vector3> = self
+            .shape
+            .points()
+            .iter()
+            .map(|v| Vector3::new(v.x, v.y, v.z))
+            .collect();
+        Variant::from(vertices)
     }
     fn set_margin(&mut self, margin: f32) {
         self.margin = margin;

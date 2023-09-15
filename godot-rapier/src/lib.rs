@@ -48,6 +48,7 @@ mod body;
 mod collision_object;
 mod shapes;
 mod space;
+mod utils;
 
 #[derive(GodotClass)]
 #[class(base=Object,init)]

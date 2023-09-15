@@ -1,4 +1,5 @@
 use godot::prelude::*;
+use rapier3d::prelude::*;
 
 use super::RapierShape;
 
@@ -21,6 +22,12 @@ impl SeparationRayShape {
 }
 
 impl RapierShape for SeparationRayShape {
+    fn collider(&self) -> ColliderBuilder {
+        ColliderBuilder::segment(point![0.0, 0.0, 0.0], point![0.0, 0.0, 1.0] * self.length)
+    }
+    fn rid(&self) -> Rid {
+        self.rid
+    }
     fn set_data(&mut self, data: godot::prelude::Variant) {
         match data.try_to::<Dictionary>() {
             Ok(d) => {

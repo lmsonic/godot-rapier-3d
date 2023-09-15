@@ -5,10 +5,13 @@ use godot::{
             PhysicsServer3DExtensionShapeResult,
         },
         physics_server_3d::SpaceParameter,
-        PhysicsDirectSpaceState3DExtensionVirtual,
+        PhysicsDirectSpaceState3DExtensionVirtual, ProjectSettings,
     },
     prelude::*,
 };
+use rapier3d::prelude::*;
+
+use crate::{area::RapierArea, body::RapierBody, utils::IntoExt};
 
 #[derive(GodotClass)]
 #[class(base=PhysicsDirectSpaceState3DExtension)]
@@ -16,6 +19,21 @@ pub struct RapierSpace {
     rid: Rid,
     params: SpaceParams,
     default_area: Rid,
+
+    rigidbody_set: RigidBodySet,
+    collider_set: ColliderSet,
+    gravity: Vector<real>,
+    integration_parameters: IntegrationParameters,
+    physics_pipeline: PhysicsPipeline,
+    island_manager: IslandManager,
+    broad_phase: BroadPhase,
+    narrow_phase: NarrowPhase,
+    impulse_joint_set: ImpulseJointSet,
+    multibody_joint_set: MultibodyJointSet,
+    ccd_solver: CCDSolver,
+    query_pipeline: QueryPipeline,
+    physics_hooks: (),
+    event_handler: (),
 }
 
 #[derive(Default)]
@@ -84,16 +102,96 @@ impl SpaceParams {
 
 impl RapierSpace {
     pub fn new(rid: Rid) -> Self {
+        let gravity_vector: Vector3 = ProjectSettings::singleton()
+            .get("physics/3d/default_gravity_vector".into())
+            .to();
+        let gravity_magnitude: f32 = ProjectSettings::singleton()
+            .get("physics/3d/default_gravity".into())
+            .to();
+        let gravity = (gravity_vector * gravity_magnitude).into_ext();
         Self {
             rid,
             params: SpaceParams::default(),
             default_area: rid,
+            rigidbody_set: RigidBodySet::new(),
+            collider_set: ColliderSet::new(),
+            gravity,
+            integration_parameters: IntegrationParameters::default(),
+            physics_pipeline: PhysicsPipeline::new(),
+            island_manager: IslandManager::new(),
+            broad_phase: BroadPhase::new(),
+            narrow_phase: NarrowPhase::new(),
+            impulse_joint_set: ImpulseJointSet::new(),
+            multibody_joint_set: MultibodyJointSet::new(),
+            ccd_solver: CCDSolver::new(),
+            query_pipeline: QueryPipeline::default(),
+            physics_hooks: (),
+            event_handler: (),
         }
     }
 
     pub const fn rid(&self) -> Rid {
         self.rid
     }
+    pub fn step(&mut self) {
+        self.physics_pipeline.step(
+            &self.gravity,
+            &self.integration_parameters,
+            &mut self.island_manager,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.rigidbody_set,
+            &mut self.collider_set,
+            &mut self.impulse_joint_set,
+            &mut self.multibody_joint_set,
+            &mut self.ccd_solver,
+            Some(&mut self.query_pipeline),
+            &self.physics_hooks,
+            &self.event_handler,
+        );
+        self.query_pipeline
+            .update(&self.rigidbody_set, &self.collider_set);
+    }
+    #[must_use]
+    pub fn add_body(&mut self, body: &Gd<RapierBody>) -> RigidBodyHandle {
+        let body = body.bind();
+        let (isometry, _) = body.state.transform.into_ext();
+        let center_of_mass = body.params.center_of_mass_local.into_ext();
+        let principal_inertia = body.params.inertia.into_ext();
+        let additional_mp =
+            MassProperties::new(center_of_mass, body.params.mass, principal_inertia);
+        let rigidbody = RigidBodyBuilder::new(body.body_mode.into_ext())
+            .position(isometry)
+            .linvel(body.state.linear_velocity.into_ext())
+            .angvel(body.state.angular_velocity.into_ext())
+            .gravity_scale(body.params.gravity_scale)
+            .can_sleep(body.state.can_sleep)
+            .ccd_enabled(body.ccd_enabled)
+            .user_data(u128::from(body.user_flags))
+            .additional_mass_properties(additional_mp)
+            .enabled_translations(
+                body.axis_locked.linear_x,
+                body.axis_locked.linear_y,
+                body.axis_locked.linear_z,
+            )
+            .enabled_rotations(
+                body.axis_locked.angular_x,
+                body.axis_locked.angular_y,
+                body.axis_locked.angular_z,
+            )
+            .linear_damping(body.params.linear_damp)
+            .angular_damping(body.params.angular_damp)
+            .sleeping(body.state.is_sleeping);
+
+        let handle = self.rigidbody_set.insert(rigidbody);
+
+        let collider = ColliderBuilder::ball(0.5);
+
+        self.collider_set
+            .insert_with_parent(collider, handle, &mut self.rigidbody_set);
+        handle
+    }
+    pub fn add_area(&self, area: &RapierArea) {}
 }
 
 impl RapierSpace {

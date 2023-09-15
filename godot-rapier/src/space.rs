@@ -38,6 +38,7 @@ pub struct RapierSpace {
     event_handler: (),
 
     direct_state: Option<Gd<RapierPhysicsDirectSpaceState3D>>,
+    has_stepped: bool,
 }
 
 impl Drop for RapierSpace {
@@ -77,10 +78,14 @@ impl RapierSpace {
             physics_hooks: Default::default(),
             event_handler: Default::default(),
             direct_state: None,
+            has_stepped: false,
         }
     }
 
     pub fn call_queries(&mut self) {
+        if !self.has_stepped {
+            return;
+        }
         for body in self.bodies.values() {
             body.borrow_mut().call_queries();
         }
@@ -112,6 +117,7 @@ impl RapierSpace {
             &self.physics_hooks,
             &self.event_handler,
         );
+        self.has_stepped = true;
     }
     pub fn set_area_collision_group(
         &mut self,

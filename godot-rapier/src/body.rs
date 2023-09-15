@@ -40,6 +40,7 @@ pub struct RapierBody {
     ccd_enabled: bool,
 
     body_state_callback: Callable,
+    sync_state: bool,
     custom_integrator_callback: Callable,
     custom_integrator_userdata: Variant,
     has_custom_integrator: bool,
@@ -169,10 +170,11 @@ impl RapierBody {
             rid,
             space_info: None,
             shapes: Vec::default(),
-            body_mode: BodyMode::BODY_MODE_STATIC,
+            body_mode: BodyMode::BODY_MODE_RIGID,
             instance_id: Option::default(),
             ccd_enabled: Default::default(),
             body_state_callback: Callable::invalid(),
+            sync_state: false,
             custom_integrator_callback: Callable::invalid(),
             custom_integrator_userdata: Variant::nil(),
             has_custom_integrator: false,
@@ -314,15 +316,16 @@ impl RapierBody {
 
     pub fn call_queries(&mut self) {
         if let Some(direct_state) = &self.direct_state {
-            if self.body_state_callback.is_valid() {
-                self.body_state_callback
-                    .callv(array![direct_state.to_variant()]);
-            }
             if self.is_rigid() && self.custom_integrator_callback.is_valid() {
                 self.custom_integrator_callback.callv(array![
                     direct_state.to_variant(),
                     self.custom_integrator_userdata.clone()
                 ]);
+            }
+            if self.sync_state && self.body_state_callback.is_valid() {
+                self.body_state_callback
+                    .callv(array![direct_state.to_variant()]);
+                self.sync_state = false;
             }
         }
     }
@@ -418,6 +421,7 @@ impl RapierBody {
                 space.apply_torque(space_info.handle, self.constant_torque);
             }
         }
+        self.sync_state = true;
     }
 
     pub fn inverse_inertia(&self) -> Vector3 {
@@ -524,6 +528,7 @@ impl RapierBody {
 
             space.move_kinematic(space_info.handle, self.kinematic_isometry);
         }
+        self.sync_state = true;
     }
 
     pub fn pre_step(&mut self, step: f32) {
@@ -771,7 +776,7 @@ impl RapierBody {
 
     pub fn set_transform(&mut self, value: Transform3D) {
         self.transform = value;
-
+        dbg!();
         if self.is_kinematic() {
             self.kinematic_isometry = {
                 let (iso, _) = value.into_ext();

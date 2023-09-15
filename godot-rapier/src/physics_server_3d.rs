@@ -611,6 +611,7 @@ impl PhysicsServer3DExtensionVirtual for RapierPhysicsServer3D {
         value: Variant,
     ) {
         if let Ok(body) = self.get_body(body) {
+            godot_print!("set state {:?} with value {value}", state);
             body.borrow_mut().set_state(state, &value);
         }
     }

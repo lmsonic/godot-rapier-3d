@@ -15,7 +15,6 @@ pub enum RapierError {
     SpaceRidMissing(Rid),
     #[error("{0} doesn't correspond to any joint")]
     JointRidMissing(Rid),
-    // TODO: Change these error to print the necessary missing info: AREA, BODY
     #[error("Area with {0} doesn't have any space set")]
     AreaSpaceNotSet(Rid),
     #[error("Body with {0} doesn't have any space set")]
@@ -26,7 +25,6 @@ pub enum RapierError {
     BodyInstanceIDNotSet(Rid),
     #[error("Shape with index {0} isn't present in object with {1}")]
     ShapeNotInObject(usize, Rid),
-    // TODO: Warning?
     #[error("Object with {0} is being build without shape (will use a disabled sphere as a stub)")]
     BuildingObjectWithNoShapes(Rid),
 }
